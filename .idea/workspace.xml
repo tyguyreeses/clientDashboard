@@ -4,14 +4,13 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="15e1617a-e5c3-4f22-8e4a-33581a3de577" name="Changes" comment="add db schema">
+    <list default="true" id="15e1617a-e5c3-4f22-8e4a-33581a3de577" name="Changes" comment="add backend initial pass">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pyproject.toml" beforeDir="false" afterPath="$PROJECT_DIR$/pyproject.toml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/client_dashboard.egg-info/PKG-INFO" beforeDir="false" afterPath="$PROJECT_DIR$/src/client_dashboard.egg-info/PKG-INFO" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/client_dashboard.egg-info/SOURCES.txt" beforeDir="false" afterPath="$PROJECT_DIR$/src/client_dashboard.egg-info/SOURCES.txt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/client_dashboard.egg-info/requires.txt" beforeDir="false" afterPath="$PROJECT_DIR$/src/client_dashboard.egg-info/requires.txt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/client_dashboard/database.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/client_dashboard/database.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/client_dashboard/api/routes.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/client_dashboard/api/routes.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/client_dashboard/models.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/client_dashboard/models.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/client_dashboard/scripts/init_db.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/client_dashboard/scripts/init_db.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/conftest.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/conftest.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -80,12 +79,21 @@
       <option name="project" value="LOCAL" />
       <updated>1789011706940</updated>
     </task>
-    <option name="localTasksCounter" value="3" />
+    <task id="LOCAL-00003" summary="add backend initial pass">
+      <option name="closed" value="true" />
+      <created>1789012928594</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1789012928594</updated>
+    </task>
+    <option name="localTasksCounter" value="4" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="basic db setup" />
     <MESSAGE value="add db schema" />
-    <option name="LAST_COMMIT_MESSAGE" value="add db schema" />
+    <MESSAGE value="add backend initial pass" />
+    <option name="LAST_COMMIT_MESSAGE" value="add backend initial pass" />
   </component>
 </project>

@@ -14,7 +14,7 @@ Start the FastAPI app with:
 uvicorn client_dashboard.main:app --reload
 ```
 
-The API exposes CRUD routes for clients, weddings, wedding party members, pricing versions, invoices, and payments.
+The API exposes CRUD routes for clients, weddings, wedding party members, pricing versions, and payments. Invoices are currently read-only API records; they are intended to preserve invoice history.
 
 ## Database Structure
 
@@ -175,4 +175,4 @@ Run:
 python -m client_dashboard.scripts.init_db
 ```
 
-That script connects to the local SQLite database, creates any missing tables, and checks that the schema matches the current models.
+That script connects to the configured database, creates missing tables, migrates legacy invoice version numbers, and verifies that the expected tables, columns, and indexes are present. It does not replace a full migration system for future destructive or type-changing schema changes.

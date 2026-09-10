@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 
 from client_dashboard.api.deps import get_db
@@ -20,6 +20,12 @@ def db_session_factory(tmp_path: Path):
         f"sqlite+pysqlite:///{db_path}",
         connect_args={"check_same_thread": False},
     )
+    @event.listens_for(engine, "connect")
+    def enable_foreign_keys(dbapi_connection, connection_record):  # type: ignore[no-untyped-def]
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+
     Base.metadata.create_all(bind=engine)
     session_factory = sessionmaker(
         bind=engine,
@@ -44,4 +50,3 @@ def client(db_session_factory) -> Generator[TestClient, None, None]:
     with TestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()
-

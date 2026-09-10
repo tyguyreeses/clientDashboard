@@ -98,8 +98,13 @@ def create_client(payload: ClientCreate, session: Session = Depends(get_db)) -> 
 
 
 @router.get("/clients", response_model=list[ClientRead])
-def list_clients(session: Session = Depends(get_db)) -> list[Client]:
-    return list(session.scalars(select(Client).order_by(Client.name, Client.id)))
+def list_clients(
+    session: Session = Depends(get_db),
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+) -> list[Client]:
+    stmt = select(Client).order_by(Client.name, Client.id).offset(offset).limit(limit)
+    return list(session.scalars(stmt))
 
 
 @router.get("/clients/{client_id}", response_model=ClientRead)
@@ -152,6 +157,8 @@ def list_weddings(
     wedding_date: date | None = None,
     client_id: int | None = None,
     source: str | None = None,
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
 ) -> list[Wedding]:
     stmt = _wedding_query(
         session,
@@ -160,7 +167,7 @@ def list_weddings(
         client_id=client_id,
         source=source,
     )
-    return list(session.scalars(stmt))
+    return list(session.scalars(stmt.offset(offset).limit(limit)))
 
 
 @router.get("/weddings/{wedding_id}", response_model=WeddingRead)
@@ -211,10 +218,15 @@ def get_party_member(party_member_id: int, session: Session = Depends(get_db)) -
 
 
 @router.get("/weddings/{wedding_id}/party-members", response_model=list[WeddingPartyMemberRead])
-def list_party_members(wedding_id: int, session: Session = Depends(get_db)) -> list[WeddingPartyMember]:
+def list_party_members(
+    wedding_id: int,
+    session: Session = Depends(get_db),
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+) -> list[WeddingPartyMember]:
     _get_or_404(session, Wedding, wedding_id, "Wedding not found")
     stmt = select(WeddingPartyMember).where(WeddingPartyMember.wedding_id == wedding_id).order_by(WeddingPartyMember.id)
-    return list(session.scalars(stmt))
+    return list(session.scalars(stmt.offset(offset).limit(limit)))
 
 
 @router.patch("/party-members/{party_member_id}", response_model=WeddingPartyMemberRead)
@@ -247,8 +259,12 @@ def create_pricing_version(payload: PricingVersionCreate, session: Session = Dep
 
 
 @router.get("/pricing-versions", response_model=list[PricingVersionRead])
-def list_pricing_versions(session: Session = Depends(get_db)) -> list[PricingVersion]:
-    stmt = select(PricingVersion).order_by(desc(PricingVersion.id))
+def list_pricing_versions(
+    session: Session = Depends(get_db),
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+) -> list[PricingVersion]:
+    stmt = select(PricingVersion).order_by(desc(PricingVersion.id)).offset(offset).limit(limit)
     return list(session.scalars(stmt))
 
 
@@ -264,6 +280,11 @@ def update_pricing_version(
     session: Session = Depends(get_db),
 ) -> PricingVersion:
     version = _get_or_404(session, PricingVersion, pricing_version_id, "Pricing version not found")
+    if session.scalar(select(Invoice.id).where(Invoice.pricing_version_id == pricing_version_id).limit(1)) is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Pricing versions referenced by invoices are immutable",
+        )
     _apply_updates(version, payload)
     _commit(session)
     session.refresh(version)
@@ -283,8 +304,17 @@ def delete_pricing_version(pricing_version_id: int, session: Session = Depends(g
 
 
 @router.get("/invoices", response_model=list[InvoiceListItem])
-def list_invoices(session: Session = Depends(get_db)) -> list[Invoice]:
-    stmt = select(Invoice).order_by(desc(Invoice.wedding_id), desc(Invoice.version_number), desc(Invoice.id))
+def list_invoices(
+    session: Session = Depends(get_db),
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+) -> list[Invoice]:
+    stmt = (
+        select(Invoice)
+        .order_by(desc(Invoice.wedding_id), desc(Invoice.version_number), desc(Invoice.id))
+        .offset(offset)
+        .limit(limit)
+    )
     return list(session.scalars(stmt))
 
 
@@ -329,10 +359,15 @@ def get_payment(payment_id: int, session: Session = Depends(get_db)) -> Payment:
 
 
 @router.get("/weddings/{wedding_id}/payments", response_model=list[PaymentRead])
-def list_payments_for_wedding(wedding_id: int, session: Session = Depends(get_db)) -> list[Payment]:
+def list_payments_for_wedding(
+    wedding_id: int,
+    session: Session = Depends(get_db),
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+) -> list[Payment]:
     _get_or_404(session, Wedding, wedding_id, "Wedding not found")
     stmt = select(Payment).where(Payment.wedding_id == wedding_id).order_by(desc(Payment.payment_date), desc(Payment.id))
-    return list(session.scalars(stmt))
+    return list(session.scalars(stmt.offset(offset).limit(limit)))
 
 
 @router.patch("/payments/{payment_id}", response_model=PaymentRead)

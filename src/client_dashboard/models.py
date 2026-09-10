@@ -72,6 +72,7 @@ class Wedding(TimestampMixin, Base):
             "status IN (0, 1, 2, 3, 4)",
             name="ck_weddings_status_valid",
         ),
+        CheckConstraint("miles_one_way IS NULL OR miles_one_way >= 0", name="ck_weddings_miles_nonnegative"),
     )
 
     STATUS_CANCELLED = 0
@@ -127,6 +128,8 @@ class WeddingPartyMember(Base):
             "hairstyle IN ('U', 'D')",
             name="ck_wedding_party_members_hairstyle_valid",
         ),
+        CheckConstraint("by_me_quantity >= 0", name="ck_wedding_party_members_by_me_nonnegative"),
+        CheckConstraint("by_assistant_quantity >= 0", name="ck_wedding_party_members_by_assistant_nonnegative"),
     )
 
     ROLE_BRIDE = "B"
@@ -159,7 +162,20 @@ class WeddingPartyMember(Base):
 
 class PricingVersion(TimestampMixin, Base):
     __tablename__ = "pricing_versions"
-    __table_args__ = (Index("ix_pricing_versions_name", "name", unique=True),)
+    __table_args__ = (
+        Index("ix_pricing_versions_name", "name", unique=True),
+        CheckConstraint("bride_price >= 0", name="ck_pricing_bride_price_nonnegative"),
+        CheckConstraint("trial_price >= 0", name="ck_pricing_trial_price_nonnegative"),
+        CheckConstraint("bridesmaid_price >= 0", name="ck_pricing_bridesmaid_price_nonnegative"),
+        CheckConstraint("flowergirl_price >= 0", name="ck_pricing_flowergirl_price_nonnegative"),
+        CheckConstraint("early_morning_fee >= 0", name="ck_pricing_early_morning_nonnegative"),
+        CheckConstraint("assistant_fee >= 0", name="ck_pricing_assistant_fee_nonnegative"),
+        CheckConstraint("assistant_bridesmaid_cut BETWEEN 0 AND 100", name="ck_pricing_assistant_cut_percent"),
+        CheckConstraint("base_travel_fee >= 0", name="ck_pricing_base_travel_nonnegative"),
+        CheckConstraint("travel_fee >= 0", name="ck_pricing_travel_nonnegative"),
+        CheckConstraint("deposit_percentage BETWEEN 0 AND 100", name="ck_pricing_deposit_percent"),
+        CheckConstraint("travel_discount_percentage BETWEEN 0 AND 100", name="ck_pricing_travel_discount_percent"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
@@ -181,7 +197,6 @@ class PricingVersion(TimestampMixin, Base):
 class Invoice(TimestampMixin, Base):
     __tablename__ = "invoices"
     __table_args__ = (
-        Index("ix_invoices_wedding_id", "wedding_id"),
         Index("ix_invoices_pricing_version_id", "pricing_version_id"),
         Index(
             "uq_invoices_wedding_id_version_number",
@@ -189,6 +204,13 @@ class Invoice(TimestampMixin, Base):
             "version_number",
             unique=True,
         ),
+        CheckConstraint("version_number >= 1", name="ck_invoices_version_positive"),
+        CheckConstraint("services_total >= 0", name="ck_invoices_services_nonnegative"),
+        CheckConstraint("travel_total >= 0", name="ck_invoices_travel_nonnegative"),
+        CheckConstraint("discount_total >= 0", name="ck_invoices_discount_nonnegative"),
+        CheckConstraint("deposit_amount >= 0", name="ck_invoices_deposit_nonnegative"),
+        CheckConstraint("balance_due >= 0", name="ck_invoices_balance_nonnegative"),
+        CheckConstraint("grand_total >= 0", name="ck_invoices_grand_total_nonnegative"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -214,7 +236,10 @@ class Invoice(TimestampMixin, Base):
 
 class Payment(TimestampMixin, Base):
     __tablename__ = "payments"
-    __table_args__ = (Index("ix_payments_wedding_id", "wedding_id"),)
+    __table_args__ = (
+        Index("ix_payments_wedding_id", "wedding_id"),
+        CheckConstraint("amount >= 0", name="ck_payments_amount_nonnegative"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     wedding_id: Mapped[int] = mapped_column(

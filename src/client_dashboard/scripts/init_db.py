@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+
 from sqlalchemy import inspect, select
 
 from client_dashboard import models  # noqa: F401
@@ -15,8 +17,23 @@ EXPECTED_TABLES = (
     "invoices",
     "payments",
 )
-EXPECTED_INVOICE_COLUMNS = ("id", "wedding_id", "version_number", "pricing_version_id")
 INVOICE_VERSION_INDEX = "uq_invoices_wedding_id_version_number"
+
+
+def _expected_columns() -> dict[str, set[str]]:
+    return {
+        table.name: {column.name for column in table.columns}
+        for table in models.Base.metadata.sorted_tables
+    }
+
+
+def _expected_indexes() -> set[str]:
+    return {
+        index.name
+        for table in models.Base.metadata.sorted_tables
+        for index in table.indexes
+        if index.name is not None
+    }
 
 
 def _ensure_invoice_versioning() -> None:
@@ -30,6 +47,18 @@ def _ensure_invoice_versioning() -> None:
                 "ALTER TABLE invoices ADD COLUMN version_number INTEGER NOT NULL DEFAULT 1"
             )
 
+            rows = connection.exec_driver_sql(
+                "SELECT id, wedding_id FROM invoices ORDER BY wedding_id, id"
+            ).fetchall()
+            next_version: dict[int, int] = {}
+            for invoice_id, wedding_id in rows:
+                version = next_version.get(wedding_id, 1)
+                connection.exec_driver_sql(
+                    "UPDATE invoices SET version_number = ? WHERE id = ?",
+                    (version, invoice_id),
+                )
+                next_version[wedding_id] = version + 1
+
         invoice_indexes = {index["name"] for index in inspector.get_indexes("invoices")}
         if INVOICE_VERSION_INDEX not in invoice_indexes:
             connection.exec_driver_sql(
@@ -39,6 +68,10 @@ def _ensure_invoice_versioning() -> None:
 
 
 def main() -> None:
+    # Migrate the legacy invoice table before create_all attempts to create
+    # the current unique index, which depends on version_number.
+    if "invoices" in inspect(engine).get_table_names():
+        _ensure_invoice_versioning()
     models.Base.metadata.create_all(bind=engine)
     _ensure_invoice_versioning()
 
@@ -51,18 +84,29 @@ def main() -> None:
     unexpected_tables = sorted(set(existing_tables) - set(EXPECTED_TABLES))
     assert not missing_tables, f"Missing tables: {missing_tables}"
     assert not unexpected_tables, f"Unexpected tables: {unexpected_tables}"
-    invoice_columns = {column["name"] for column in inspector.get_columns("invoices")}
-    missing_invoice_columns = sorted(
-        set(EXPECTED_INVOICE_COLUMNS) - set(invoice_columns)
-    )
-    assert not missing_invoice_columns, f"Missing invoice columns: {missing_invoice_columns}"
-    invoice_indexes = {index["name"] for index in inspector.get_indexes("invoices")}
-    assert (
-        INVOICE_VERSION_INDEX in invoice_indexes
-    ), f"Missing invoice index: {INVOICE_VERSION_INDEX}"
+    actual_columns = {
+        table: {column["name"] for column in inspector.get_columns(table)}
+        for table in EXPECTED_TABLES
+    }
+    missing_columns = {
+        table: sorted(columns - actual_columns[table])
+        for table, columns in _expected_columns().items()
+        if columns - actual_columns[table]
+    }
+    assert not missing_columns, f"Missing columns: {missing_columns}"
+
+    actual_indexes = {
+        index["name"]
+        for table in EXPECTED_TABLES
+        for index in inspector.get_indexes(table)
+        if index["name"] is not None
+    }
+    missing_indexes = sorted(_expected_indexes() - actual_indexes)
+    assert not missing_indexes, f"Missing indexes: {missing_indexes}"
 
     print(f"Connected successfully using {get_database_url()}")
-    print(f"SQLite file: {get_sqlite_path()}")
+    if engine.dialect.name == "sqlite" and not os.getenv("DATABASE_URL"):
+        print(f"SQLite file: {get_sqlite_path()}")
     print(f"Verified tables: {', '.join(EXPECTED_TABLES)}")
     print("Verified invoice versioning: version_number + per-wedding unique index")
 
