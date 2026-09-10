@@ -19,7 +19,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from client_dashboard.database import Base
+from .database import Base
 
 
 def _utcnow() -> datetime:

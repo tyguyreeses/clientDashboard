@@ -5,8 +5,8 @@ import os
 from sqlalchemy import inspect, select
 
 from client_dashboard import models  # noqa: F401
-from client_dashboard.database import engine
-from client_dashboard.settings import get_database_url, get_sqlite_path
+from ..database import engine
+from ..settings import get_database_url, get_sqlite_path
 
 
 EXPECTED_TABLES = (

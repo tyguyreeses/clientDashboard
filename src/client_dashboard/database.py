@@ -3,7 +3,7 @@ from __future__ import annotations
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
-from client_dashboard.settings import get_database_url
+from .settings import get_database_url
 
 
 class Base(DeclarativeBase):

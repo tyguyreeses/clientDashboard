@@ -7,8 +7,8 @@ from sqlalchemy import Select, desc, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
-from client_dashboard.api.deps import get_db
-from client_dashboard.api.schemas import (
+from .deps import get_db
+from .schemas import (
     ClientCreate,
     ClientRead,
     ClientUpdate,
@@ -29,7 +29,7 @@ from client_dashboard.api.schemas import (
     WeddingStatus,
     WeddingUpdate,
 )
-from client_dashboard.models import (
+from ..models import (
     Client,
     Invoice,
     Payment,

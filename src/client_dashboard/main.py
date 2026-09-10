@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import FastAPI
 
-from client_dashboard.api.routes import router
+from .api.routes import router
 
 
 def create_app() -> FastAPI:
