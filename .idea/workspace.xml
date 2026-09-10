@@ -4,12 +4,14 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="15e1617a-e5c3-4f22-8e4a-33581a3de577" name="Changes" comment="basic db setup">
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
+    <list default="true" id="15e1617a-e5c3-4f22-8e4a-33581a3de577" name="Changes" comment="add db schema">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pyproject.toml" beforeDir="false" afterPath="$PROJECT_DIR$/pyproject.toml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/client_dashboard.egg-info/PKG-INFO" beforeDir="false" afterPath="$PROJECT_DIR$/src/client_dashboard.egg-info/PKG-INFO" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/client_dashboard.egg-info/SOURCES.txt" beforeDir="false" afterPath="$PROJECT_DIR$/src/client_dashboard.egg-info/SOURCES.txt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/client_dashboard/scripts/init_db.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/client_dashboard/scripts/init_db.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/client_dashboard.egg-info/requires.txt" beforeDir="false" afterPath="$PROJECT_DIR$/src/client_dashboard.egg-info/requires.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/client_dashboard/database.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/client_dashboard/database.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -19,6 +21,18 @@
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
+  <component name="GitHubPullRequestSearchHistory"><![CDATA[{
+  "lastFilter": {
+    "state": "OPEN",
+    "assignee": "tyguyreeses"
+  }
+}]]></component>
+  <component name="GithubPullRequestsUISettings"><![CDATA[{
+  "selectedUrlAndAccountId": {
+    "url": "https://github.com/tyguyreeses/clientDashboard.git",
+    "accountId": "1b4dda5d-71f4-4030-bbac-f6281de80d93"
+  }
+}]]></component>
   <component name="ProjectColorInfo"><![CDATA[{
   "associatedIndex": 5
 }]]></component>
@@ -58,11 +72,20 @@
       <option name="project" value="LOCAL" />
       <updated>1789011174637</updated>
     </task>
-    <option name="localTasksCounter" value="2" />
+    <task id="LOCAL-00002" summary="add db schema">
+      <option name="closed" value="true" />
+      <created>1789011706940</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1789011706940</updated>
+    </task>
+    <option name="localTasksCounter" value="3" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="basic db setup" />
-    <option name="LAST_COMMIT_MESSAGE" value="basic db setup" />
+    <MESSAGE value="add db schema" />
+    <option name="LAST_COMMIT_MESSAGE" value="add db schema" />
   </component>
 </project>

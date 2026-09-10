@@ -1,1 +1,5 @@
+fastapi<1.0,>=0.115
 SQLAlchemy<3.0,>=2.0
+httpx<1.0,>=0.27
+uvicorn<1.0,>=0.30
+pytest<9.0,>=8.0

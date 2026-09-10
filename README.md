@@ -6,6 +6,16 @@
 2. Install dependencies with `pip install -e .`.
 3. Create and verify the schema with `python -m client_dashboard.scripts.init_db`.
 
+## API Layer
+
+Start the FastAPI app with:
+
+```bash
+uvicorn client_dashboard.main:app --reload
+```
+
+The API exposes CRUD routes for clients, weddings, wedding party members, pricing versions, invoices, and payments.
+
 ## Database Structure
 
 The application uses SQLAlchemy with SQLite for local development. The database file is created at `data/client_dashboard.db` by default. The schema is intentionally normalized so wedding data, pricing data, invoices, and payments can evolve independently.

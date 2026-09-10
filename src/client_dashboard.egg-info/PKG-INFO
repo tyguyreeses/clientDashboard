@@ -4,21 +4,177 @@ Version: 0.1.0
 Summary: Backend foundation for a bridal hairstylist client and income tracker
 Requires-Python: >=3.11
 Description-Content-Type: text/markdown
+Requires-Dist: fastapi<1.0,>=0.115
 Requires-Dist: SQLAlchemy<3.0,>=2.0
+Requires-Dist: httpx<1.0,>=0.27
+Requires-Dist: uvicorn<1.0,>=0.30
+Requires-Dist: pytest<9.0,>=8.0
 
 # Client Dashboard Backend
 
-## Local database setup
+## Local Database Setup
 
 1. Create and activate a virtual environment.
 2. Install dependencies with `pip install -e .`.
-3. Run the database initialization check with `python -m client_dashboard.scripts.init_db`.
+3. Create and verify the schema with `python -m client_dashboard.scripts.init_db`.
 
-## Configuration
+## Database Structure
+
+The application uses SQLAlchemy with SQLite for local development. The database file is created at `data/client_dashboard.db` by default. The schema is intentionally normalized so wedding data, pricing data, invoices, and payments can evolve independently.
+
+### Core tables
+
+#### `clients`
+Stores the client record that starts the workflow.
+
+- `id`
+- `name`
+- `phone`
+- `email`
+- `social_media`
+- `source`
+- `inquiry_date`
+- `notes`
+- `created_at`
+- `updated_at`
+
+Indexes:
+
+- `source`
+- `inquiry_date`
+
+#### `weddings`
+Stores the wedding record and acts as the center of the business workflow.
+
+- `id`
+- `client_id`
+- `wedding_date`
+- `location`
+- `miles_one_way`
+- `ready_by`
+- `status`
+- `bridal_trial`
+- `assistant`
+- `created_at`
+- `updated_at`
+
+Status codes:
+
+- `0` = cancelled
+- `1` = inquired
+- `2` = responded
+- `3` = awaiting deposit
+- `4` = deposit received
+
+Indexes:
+
+- `client_id`
+- `wedding_date`
+- `status`
+
+#### `wedding_party_members`
+Stores the services needed for each member of the wedding party.
+
+- `id`
+- `wedding_id`
+- `role`
+- `hairstyle`
+- `by_me_quantity`
+- `by_assistant_quantity`
+
+Role codes:
+
+- `B` = bride
+- `P` = bridal party
+- `J` = junior bridesmaid
+- `F` = flowergirl
+
+Hairstyle codes:
+
+- `U` = updo
+- `D` = down
+
+Indexes:
+
+- `wedding_id`
+
+#### `pricing_versions`
+Stores a versioned snapshot of pricing configuration so historical invoices are not affected by future pricing changes.
+
+- `id`
+- `name`
+- `bride_price`
+- `trial_price`
+- `bridesmaid_price`
+- `flowergirl_price`
+- `early_morning_fee`
+- `assistant_fee`
+- `assistant_bridesmaid_cut`
+- `base_travel_fee`
+- `travel_fee`
+- `deposit_percentage`
+- `travel_discount_percentage`
+- `created_at`
+- `updated_at`
+
+#### `invoices`
+Stores invoice history for a wedding. A wedding can have multiple invoices, and the latest invoice is the one with the highest `version_number` for that wedding.
+
+- `id`
+- `wedding_id`
+- `version_number`
+- `pricing_version_id`
+- `services_total`
+- `travel_total`
+- `discount_total`
+- `deposit_amount`
+- `balance_due`
+- `grand_total`
+- `created_at`
+- `updated_at`
+
+Indexes:
+
+- `wedding_id`
+- `pricing_version_id`
+- unique `wedding_id + version_number`
+
+#### `payments`
+Stores payments tied to a wedding.
+
+- `id`
+- `wedding_id`
+- `amount`
+- `payment_date`
+- `payment_method`
+- `notes`
+- `created_at`
+- `updated_at`
+
+Indexes:
+
+- `wedding_id`
+
+### Relationships
+
+- One `client` can have many `weddings`.
+- One `wedding` can have many `wedding_party_members`.
+- One `wedding` can have many `invoices`.
+- One `wedding` can have many `payments`.
+- One `pricing_version` can be referenced by many `invoices`.
+
+### Configuration
 
 - `DATABASE_URL` overrides the database connection string.
 - If `DATABASE_URL` is not set, the app uses SQLite with `SQLITE_DB_PATH` or `data/client_dashboard.db`.
+- The schema initializer creates missing tables and verifies that the expected tables and invoice versioning are present.
 
-## SQLite file location
+### Verify The Schema
 
-By default, the local SQLite database is created at `data/client_dashboard.db`.
+Run:
+
+```bash
+python -m client_dashboard.scripts.init_db
+```
+
+That script connects to the local SQLite database, creates any missing tables, and checks that the schema matches the current models.
