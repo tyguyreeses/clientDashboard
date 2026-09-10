@@ -22,4 +22,3 @@ Requires-Dist: SQLAlchemy<3.0,>=2.0
 ## SQLite file location
 
 By default, the local SQLite database is created at `data/client_dashboard.db`.
-

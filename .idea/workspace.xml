@@ -4,13 +4,12 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="15e1617a-e5c3-4f22-8e4a-33581a3de577" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/.idea/clientDashboard.iml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/inspectionProfiles/Project_Default.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/inspectionProfiles/profiles_settings.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+    <list default="true" id="15e1617a-e5c3-4f22-8e4a-33581a3de577" name="Changes" comment="basic db setup">
+      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/client_dashboard.egg-info/PKG-INFO" beforeDir="false" afterPath="$PROJECT_DIR$/src/client_dashboard.egg-info/PKG-INFO" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/client_dashboard.egg-info/SOURCES.txt" beforeDir="false" afterPath="$PROJECT_DIR$/src/client_dashboard.egg-info/SOURCES.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/client_dashboard/scripts/init_db.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/client_dashboard/scripts/init_db.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -51,6 +50,19 @@
       <option name="presentableId" value="Default" />
       <updated>1789005404427</updated>
     </task>
+    <task id="LOCAL-00001" summary="basic db setup">
+      <option name="closed" value="true" />
+      <created>1789011174637</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1789011174637</updated>
+    </task>
+    <option name="localTasksCounter" value="2" />
     <servers />
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="basic db setup" />
+    <option name="LAST_COMMIT_MESSAGE" value="basic db setup" />
   </component>
 </project>
