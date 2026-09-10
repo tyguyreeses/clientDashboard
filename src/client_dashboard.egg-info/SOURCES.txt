@@ -1,0 +1,12 @@
+README.md
+pyproject.toml
+src/client_dashboard/__init__.py
+src/client_dashboard/database.py
+src/client_dashboard/settings.py
+src/client_dashboard.egg-info/PKG-INFO
+src/client_dashboard.egg-info/SOURCES.txt
+src/client_dashboard.egg-info/dependency_links.txt
+src/client_dashboard.egg-info/requires.txt
+src/client_dashboard.egg-info/top_level.txt
+src/client_dashboard/scripts/__init__.py
+src/client_dashboard/scripts/init_db.py
