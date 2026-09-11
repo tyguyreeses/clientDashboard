@@ -73,6 +73,10 @@ class Wedding(TimestampMixin, Base):
             name="ck_weddings_status_valid",
         ),
         CheckConstraint("miles_one_way IS NULL OR miles_one_way >= 0", name="ck_weddings_miles_nonnegative"),
+        CheckConstraint(
+            "bridal_trial_status IN ('not_interested', 'interested', 'link_sent', 'booked', 'cancelled')",
+            name="ck_weddings_bridal_trial_status_valid",
+        ),
     )
 
     STATUS_CANCELLED = 0
@@ -88,6 +92,19 @@ class Wedding(TimestampMixin, Base):
         STATUS_DEPOSIT_RECEIVED,
     )
 
+    BRIDAL_TRIAL_NOT_INTERESTED = "not_interested"
+    BRIDAL_TRIAL_INTERESTED = "interested"
+    BRIDAL_TRIAL_LINK_SENT = "link_sent"
+    BRIDAL_TRIAL_BOOKED = "booked"
+    BRIDAL_TRIAL_CANCELLED = "cancelled"
+    BRIDAL_TRIAL_STATUS_VALUES = (
+        BRIDAL_TRIAL_NOT_INTERESTED,
+        BRIDAL_TRIAL_INTERESTED,
+        BRIDAL_TRIAL_LINK_SENT,
+        BRIDAL_TRIAL_BOOKED,
+        BRIDAL_TRIAL_CANCELLED,
+    )
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     client_id: Mapped[int] = mapped_column(
         ForeignKey("clients.id"),
@@ -98,7 +115,9 @@ class Wedding(TimestampMixin, Base):
     miles_one_way: Mapped[Decimal | None] = mapped_column(Numeric(8, 2))
     ready_by: Mapped[time | None] = mapped_column(Time)
     status: Mapped[int] = mapped_column(Integer, nullable=False, default=STATUS_INQUIRED)
-    bridal_trial: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    bridal_trial_status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default=BRIDAL_TRIAL_NOT_INTERESTED
+    )
     assistant: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     client: Mapped[Client] = relationship(back_populates="weddings")

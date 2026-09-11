@@ -14,6 +14,18 @@ Start the FastAPI app with:
 uvicorn client_dashboard.main:app --reload
 ```
 
+## Frontend Preview
+
+The visual-only React dashboard lives in `frontend/` and uses local fixture data while the profile workflow is being designed:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+The frontend includes the wedding board, playful status interactions, a client profile drawer, and placeholder invoice actions. It does not write to the backend yet.
+
 The API exposes CRUD routes for clients, weddings, wedding party members, pricing versions, and payments. Invoices are currently read-only API records; they are intended to preserve invoice history.
 
 ## Database Structure
@@ -51,8 +63,8 @@ Stores the wedding record and acts as the center of the business workflow.
 - `miles_one_way`
 - `ready_by`
 - `status`
-- `bridal_trial`
 - `assistant`
+- `bridal_trial_status`
 - `created_at`
 - `updated_at`
 
@@ -63,6 +75,14 @@ Status codes:
 - `2` = responded
 - `3` = awaiting deposit
 - `4` = deposit received
+
+Bridal trial status codes:
+
+- `not_interested`
+- `interested`
+- `link_sent`
+- `booked`
+- `cancelled`
 
 Indexes:
 

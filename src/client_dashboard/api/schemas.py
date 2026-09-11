@@ -7,6 +7,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 WeddingStatus = Literal[0, 1, 2, 3, 4]
+BridalTrialStatus = Literal["not_interested", "interested", "link_sent", "booked", "cancelled"]
 PartyRole = Literal["B", "P", "J", "F"]
 HairStyle = Literal["U", "D"]
 
@@ -59,7 +60,7 @@ class WeddingBase(BaseModel):
     miles_one_way: Decimal | None = Field(default=None, ge=0, max_digits=8, decimal_places=2)
     ready_by: time | None = None
     status: WeddingStatus = 1
-    bridal_trial: bool = False
+    bridal_trial_status: BridalTrialStatus = "not_interested"
     assistant: bool = False
 
 
@@ -74,7 +75,7 @@ class WeddingUpdate(BaseModel):
     miles_one_way: Decimal | None = Field(default=None, ge=0, max_digits=8, decimal_places=2)
     ready_by: time | None = None
     status: WeddingStatus | None = None
-    bridal_trial: bool | None = None
+    bridal_trial_status: BridalTrialStatus | None = None
     assistant: bool | None = None
 
 
@@ -109,7 +110,7 @@ class WeddingRead(TimestampRead):
     miles_one_way: Decimal | None
     ready_by: time | None
     status: WeddingStatus
-    bridal_trial: bool
+    bridal_trial_status: BridalTrialStatus
     assistant: bool
     client: ClientSummary | None = None
     party_members: list[WeddingPartyMemberRead] = Field(default_factory=list)
@@ -123,7 +124,7 @@ class WeddingListItem(TimestampRead):
     miles_one_way: Decimal | None
     ready_by: time | None
     status: WeddingStatus
-    bridal_trial: bool
+    bridal_trial_status: BridalTrialStatus
     assistant: bool
     client: ClientSummary | None = None
 
@@ -209,4 +210,3 @@ class PaymentUpdate(BaseModel):
 
 class PaymentRead(PaymentBase, TimestampRead):
     id: int
-

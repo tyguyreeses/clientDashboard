@@ -4,6 +4,7 @@ import os
 import subprocess
 import sys
 from decimal import Decimal
+from pathlib import Path
 
 from client_dashboard.models import Invoice, Payment
 
@@ -60,7 +61,7 @@ def test_wedding_party_payment_and_filters(client, db_session_factory):
             "miles_one_way": "24.50",
             "ready_by": "08:30:00",
             "status": 1,
-            "bridal_trial": True,
+            "bridal_trial_status": "link_sent",
             "assistant": False,
         },
     )
@@ -274,6 +275,10 @@ def test_schema_initializes_successfully(tmp_path):
     db_path = tmp_path / "schema.db"
     env = os.environ.copy()
     env["DATABASE_URL"] = f"sqlite+pysqlite:///{db_path}"
+    src_path = str(Path(__file__).resolve().parents[1] / "src")
+    env["PYTHONPATH"] = os.pathsep.join(
+        path for path in (src_path, env.get("PYTHONPATH")) if path
+    )
     result = subprocess.run(
         [sys.executable, "-m", "client_dashboard.scripts.init_db"],
         env=env,

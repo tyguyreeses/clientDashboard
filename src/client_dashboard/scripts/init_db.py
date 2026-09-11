@@ -18,6 +18,7 @@ EXPECTED_TABLES = (
     "payments",
 )
 INVOICE_VERSION_INDEX = "uq_invoices_wedding_id_version_number"
+WEDDING_TRIAL_STATUS_COLUMN = "bridal_trial_status"
 
 
 def _expected_columns() -> dict[str, set[str]]:
@@ -67,13 +68,34 @@ def _ensure_invoice_versioning() -> None:
             )
 
 
+def _ensure_bridal_trial_status() -> None:
+    with engine.begin() as connection:
+        inspector = inspect(connection)
+        columns = {column["name"] for column in inspector.get_columns("weddings")}
+        if WEDDING_TRIAL_STATUS_COLUMN in columns:
+            return
+
+        connection.exec_driver_sql(
+            "ALTER TABLE weddings ADD COLUMN bridal_trial_status "
+            "VARCHAR(20) NOT NULL DEFAULT 'not_interested'"
+        )
+        if "bridal_trial" in columns:
+            connection.exec_driver_sql(
+                "UPDATE weddings SET bridal_trial_status = 'interested' "
+                "WHERE bridal_trial = 1"
+            )
+
+
 def main() -> None:
     # Migrate the legacy invoice table before create_all attempts to create
     # the current unique index, which depends on version_number.
     if "invoices" in inspect(engine).get_table_names():
         _ensure_invoice_versioning()
+    if "weddings" in inspect(engine).get_table_names():
+        _ensure_bridal_trial_status()
     models.Base.metadata.create_all(bind=engine)
     _ensure_invoice_versioning()
+    _ensure_bridal_trial_status()
 
     with engine.connect() as connection:
         connection.execute(select(1))
