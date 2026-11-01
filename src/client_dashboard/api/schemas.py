@@ -72,6 +72,7 @@ class WeddingBase(BaseModel):
     miles_one_way: Decimal | None = Field(default=None, ge=0, max_digits=8, decimal_places=2)
     ready_by: time | None = None
     status: WeddingStatus = 1
+    invoice_sent_at: datetime | None = None
     bridal_trial_status: BridalTrialStatus = "not_interested"
     assistant: bool = False
 
@@ -87,6 +88,7 @@ class WeddingUpdate(BaseModel):
     miles_one_way: Decimal | None = Field(default=None, ge=0, max_digits=8, decimal_places=2)
     ready_by: time | None = None
     status: WeddingStatus | None = None
+    invoice_sent_at: datetime | None = None
     bridal_trial_status: BridalTrialStatus | None = None
     assistant: bool | None = None
 
@@ -122,6 +124,7 @@ class WeddingRead(TimestampRead):
     miles_one_way: Decimal | None
     ready_by: time | None
     status: WeddingStatus
+    invoice_sent_at: datetime | None
     bridal_trial_status: BridalTrialStatus
     assistant: bool
     client: ClientSummary | None = None

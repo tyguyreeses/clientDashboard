@@ -19,6 +19,7 @@ EXPECTED_TABLES = (
 )
 INVOICE_VERSION_INDEX = "uq_invoices_wedding_id_version_number"
 WEDDING_TRIAL_STATUS_COLUMN = "bridal_trial_status"
+INVOICE_SENT_AT_COLUMN = "invoice_sent_at"
 CLIENT_INQUIRY_COLUMNS = {
     "planning_stage": "VARCHAR(30)",
     "makeup_interest": "BOOLEAN",
@@ -94,6 +95,16 @@ def _ensure_bridal_trial_status() -> None:
             )
 
 
+def _ensure_invoice_sent_at() -> None:
+    with engine.begin() as connection:
+        inspector = inspect(connection)
+        columns = {column["name"] for column in inspector.get_columns("weddings")}
+        if INVOICE_SENT_AT_COLUMN not in columns:
+            connection.exec_driver_sql(
+                "ALTER TABLE weddings ADD COLUMN invoice_sent_at DATETIME"
+            )
+
+
 def _ensure_client_inquiry_fields() -> None:
     with engine.begin() as connection:
         inspector = inspect(connection)
@@ -112,10 +123,13 @@ def main() -> None:
         _ensure_bridal_trial_status()
     if "clients" in inspect(engine).get_table_names():
         _ensure_client_inquiry_fields()
+    if "weddings" in inspect(engine).get_table_names():
+        _ensure_invoice_sent_at()
     models.Base.metadata.create_all(bind=engine)
     _ensure_invoice_versioning()
     _ensure_bridal_trial_status()
     _ensure_client_inquiry_fields()
+    _ensure_invoice_sent_at()
 
     with engine.connect() as connection:
         connection.execute(select(1))

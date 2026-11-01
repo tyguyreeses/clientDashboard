@@ -3,7 +3,7 @@ const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 export const STATUS = {
   0: { label: "Cancelled", tone: "cancelled" },
   1: { label: "Inquired", tone: "inquired" },
-  2: { label: "Responded", tone: "responded" },
+  2: { label: "Invoice sent", tone: "responded" },
   3: { label: "Awaiting deposit", tone: "awaiting" },
   4: { label: "Deposit received", tone: "booked" },
 };
@@ -37,6 +37,11 @@ export const formatDate = (value) =>
       }).format(new Date(`${value}T12:00:00`))
     : "No date";
 
+export const formatDateTime = (value) =>
+  value
+    ? new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(new Date(value))
+    : "";
+
 export const formatMoney = (value) =>
   new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -67,6 +72,7 @@ export function weddingView(wedding) {
     notes: client.notes || "",
     initials: initials(client.name),
     weddingDate: wedding.wedding_date,
+    invoiceSentAt: wedding.invoice_sent_at,
     readyBy: timeLabel(wedding.ready_by),
     location: wedding.location || "Location TBD",
     miles: wedding.miles_one_way,

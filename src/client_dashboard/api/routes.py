@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import Select, desc, select
@@ -184,6 +184,8 @@ def get_wedding(wedding_id: int, session: Session = Depends(get_db)) -> Wedding:
 def update_wedding(wedding_id: int, payload: WeddingUpdate, session: Session = Depends(get_db)) -> Wedding:
     wedding = _get_or_404(session, Wedding, wedding_id, "Wedding not found")
     updates = payload.model_dump(exclude_unset=True)
+    if updates.get("status") == Wedding.STATUS_RESPONDED and wedding.invoice_sent_at is None:
+        updates["invoice_sent_at"] = datetime.now(timezone.utc)
     if "client_id" in updates:
         _get_or_404(session, Client, updates["client_id"], "Client not found")
     for field, value in updates.items():

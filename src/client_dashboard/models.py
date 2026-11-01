@@ -121,6 +121,7 @@ class Wedding(TimestampMixin, Base):
     miles_one_way: Mapped[Decimal | None] = mapped_column(Numeric(8, 2))
     ready_by: Mapped[time | None] = mapped_column(Time)
     status: Mapped[int] = mapped_column(Integer, nullable=False, default=STATUS_INQUIRED)
+    invoice_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     bridal_trial_status: Mapped[str] = mapped_column(
         String(20), nullable=False, default=BRIDAL_TRIAL_NOT_INTERESTED
     )

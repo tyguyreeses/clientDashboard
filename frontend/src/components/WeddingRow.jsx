@@ -1,4 +1,4 @@
-import { STATUS, TRIAL_STATUS, formatDate, formatMoney } from "../utils";
+import { STATUS, TRIAL_STATUS, formatDate, formatDateTime, formatMoney } from "../utils";
 
 export function WeddingRow({ wedding, onSelect, onStatus }) {
   const status = STATUS[wedding.status];
@@ -29,6 +29,7 @@ export function WeddingRow({ wedding, onSelect, onStatus }) {
         <strong>{formatMoney(wedding.balance)}</strong>
       </div>
       <div className="status-cell" onClick={(event) => event.stopPropagation()}>
+        {wedding.status === 2 && wedding.invoiceSentAt && <small>Sent {formatDateTime(wedding.invoiceSentAt)}</small>}
         <select
           className={`status-select ${status.tone}`}
           value={wedding.status}
