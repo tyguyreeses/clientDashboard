@@ -13,3 +13,20 @@ data/*.sqlite3
 *.db
 *.sqlite3
 *.egg-info/
+
+# Frontend dependencies and build output
+frontend/node_modules/
+frontend/dist/
+
+# IDE and operating-system files
+.idea/
+.vscode/
+.DS_Store
+
+# Test and coverage output
+.coverage
+coverage/
+htmlcov/
+
+# Logs
+*.log
