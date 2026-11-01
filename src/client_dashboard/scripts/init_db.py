@@ -25,6 +25,7 @@ CLIENT_INQUIRY_COLUMNS = {
     "recommendations_if_unavailable": "BOOLEAN",
     "referral_name": "VARCHAR(255)",
     "hair_service_details": "TEXT",
+    "archived": "BOOLEAN NOT NULL DEFAULT 0",
 }
 
 

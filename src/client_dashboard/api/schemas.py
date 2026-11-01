@@ -53,10 +53,12 @@ class ClientUpdate(BaseModel):
     recommendations_if_unavailable: bool | None = None
     referral_name: str | None = Field(default=None, max_length=255)
     hair_service_details: str | None = None
+    archived: bool | None = None
 
 
 class ClientRead(ClientBase, TimestampRead):
     id: int
+    archived: bool
 
 
 class ClientSummary(ClientRead):

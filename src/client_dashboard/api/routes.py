@@ -85,6 +85,7 @@ def _wedding_query(
         query = query.where(Wedding.client_id == client_id)
     if source is not None:
         query = query.where(Client.source == source)
+    query = query.where(Wedding.client.has(Client.archived.is_(False)))
     return query.order_by(desc(Wedding.wedding_date), desc(Wedding.id))
 
 
@@ -102,8 +103,12 @@ def list_clients(
     session: Session = Depends(get_db),
     limit: int = Query(default=100, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
+    include_archived: bool = Query(default=False),
 ) -> list[Client]:
-    stmt = select(Client).order_by(Client.name, Client.id).offset(offset).limit(limit)
+    stmt = select(Client)
+    if not include_archived:
+        stmt = stmt.where(Client.archived.is_(False))
+    stmt = stmt.order_by(Client.name, Client.id).offset(offset).limit(limit)
     return list(session.scalars(stmt))
 
 

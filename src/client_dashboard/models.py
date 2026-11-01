@@ -60,6 +60,7 @@ class Client(TimestampMixin, Base):
     recommendations_if_unavailable: Mapped[bool | None] = mapped_column(Boolean)
     referral_name: Mapped[str | None] = mapped_column(String(255))
     hair_service_details: Mapped[str | None] = mapped_column(Text)
+    archived: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     weddings: Mapped[list[Wedding]] = relationship(
         back_populates="client",
