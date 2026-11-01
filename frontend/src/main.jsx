@@ -1,155 +1,78 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import './styles.css'
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 const STATUS = {
-  0: { label: 'Cancelled', tone: 'cancelled' },
-  1: { label: 'Inquired', tone: 'inquired' },
-  2: { label: 'Responded', tone: 'responded' },
-  3: { label: 'Awaiting deposit', tone: 'awaiting' },
+  0: { label: 'Cancelled', tone: 'cancelled' }, 1: { label: 'Inquired', tone: 'inquired' },
+  2: { label: 'Responded', tone: 'responded' }, 3: { label: 'Awaiting deposit', tone: 'awaiting' },
   4: { label: 'Deposit received', tone: 'booked' },
 }
-
-const TRIAL_STATUS = {
-  not_interested: 'Not interested',
-  interested: 'Interested',
-  link_sent: 'Link sent',
-  booked: 'Booked',
-  cancelled: 'Cancelled',
+const TRIAL_STATUS = { not_interested: 'Not interested', interested: 'Interested', link_sent: 'Link sent', booked: 'Booked', cancelled: 'Cancelled' }
+const json = async (path, options = {}) => {
+  const response = await fetch(`${API_URL}${path}`, { headers: { 'Content-Type': 'application/json', ...(options.headers || {}) }, ...options })
+  if (!response.ok) { const body = await response.json().catch(() => ({})); throw new Error(body.detail || `Request failed (${response.status})`) }
+  return response.status === 204 ? null : response.json()
 }
+const formatDate = (value) => value ? new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(`${value}T12:00:00`)) : 'No date'
+const formatMoney = (value) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(Number(value || 0))
+const initials = (name = '') => name.split(/\s+/).filter(Boolean).map((part) => part[0]).join('').slice(0, 2).toUpperCase()
+const timeLabel = (value) => value ? value.slice(0, 5) : 'Time TBD'
 
-const demoWeddings = [
-  {
-    id: 1, clientId: 1, name: 'Amelia Rose', initials: 'AR', email: 'amelia.rose@example.com',
-    phone: '(720) 555-0138', weddingDate: '2026-10-03', location: 'The Lyons Farmette',
-    readyBy: '7:30 AM', status: 3, bridalTrialStatus: 'link_sent', bridalTrialNotes: 'Sent the style guide and sign-up link.',
-    people: 7, assistant: true, miles: 38, source: 'Instagram', notes: 'Loves soft texture and an unfussy veil moment.',
-    balance: 1_040, paid: '$520 deposit · Venmo', party: 'Bride + 5 attendants + flower girl',
-  },
-  {
-    id: 2, clientId: 2, name: 'Sophie Bennett', initials: 'SB', email: 'sophie.bennett@example.com',
-    phone: '(303) 555-0194', weddingDate: '2026-09-19', location: 'The St. Julien Hotel',
-    readyBy: '8:00 AM', status: 2, bridalTrialStatus: 'interested', bridalTrialNotes: 'Wants to decide after venue walkthrough.',
-    people: 4, assistant: false, miles: 12, source: 'Referral', notes: 'Classic chignon with face-framing pieces.',
-    balance: 760, paid: 'No payment yet', party: 'Bride + 3 attendants',
-  },
-  {
-    id: 3, clientId: 3, name: 'Madeline Chen', initials: 'MC', email: 'madeline.chen@example.com',
-    phone: '(303) 555-0172', weddingDate: '2026-08-22', location: 'Denver Botanic Gardens',
-    readyBy: '6:30 AM', status: 4, bridalTrialStatus: 'booked', bridalTrialNotes: 'Trial booked for July 18 at 2:00 PM.',
-    people: 9, assistant: true, miles: 18, source: 'Website', notes: 'Big, airy bun with pearl pins.',
-    balance: 620, paid: '$620 deposit · Card', party: 'Bride + 7 attendants',
-  },
-  {
-    id: 4, clientId: 4, name: 'Clara Whitmore', initials: 'CW', email: 'clara.whitmore@example.com',
-    phone: '(303) 555-0158', weddingDate: '2025-09-14', location: 'Boulder Creek House',
-    readyBy: '8:30 AM', status: 4, bridalTrialStatus: 'cancelled', bridalTrialNotes: 'Trial cancelled; bride chose to keep her natural texture.',
-    people: 6, assistant: false, miles: 22, source: 'Referral', notes: 'The sweetest garden party morning.',
-    balance: 0, paid: '$1,240 paid · Card', party: 'Bride + 5 attendants',
-  },
-  {
-    id: 5, clientId: 5, name: 'Nora Ellis', initials: 'NE', email: 'nora.ellis@example.com',
-    phone: '(720) 555-0161', weddingDate: '2025-06-07', location: 'The Broadmoor',
-    readyBy: '7:00 AM', status: 0, bridalTrialStatus: 'not_interested', bridalTrialNotes: 'No trial requested.',
-    people: 3, assistant: false, miles: 74, source: 'Website', notes: 'Cancelled due to a change in wedding plans.',
-    balance: 0, paid: 'Deposit refunded · Card', party: 'Bride + 2 attendants',
-  },
-]
-
-const formatDate = (value) => new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(`${value}T12:00:00`))
-const formatMoney = (value) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value)
-const dueDate = (value) => {
-  const date = new Date(`${value}T12:00:00`)
-  date.setDate(date.getDate() - 1)
-  return `${new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(date)} at 8:00 PM`
+function weddingView(wedding) {
+  const client = wedding.client || {}
+  return { ...wedding, clientId: wedding.client_id, name: client.name || 'Unnamed client', email: client.email || '', phone: client.phone || '', source: client.source || 'Unknown source', notes: client.notes || '', initials: initials(client.name), weddingDate: wedding.wedding_date, readyBy: timeLabel(wedding.ready_by), location: wedding.location || 'Location TBD', miles: wedding.miles_one_way, people: (wedding.party_members || []).reduce((sum, member) => sum + member.by_me_quantity + member.by_assistant_quantity, 0), bridalTrialStatus: wedding.bridal_trial_status, balance: 0, paid: 'No payment recorded', party: `${(wedding.party_members || []).length} party members` }
 }
 
 function App() {
-  const [weddings, setWeddings] = useState(demoWeddings)
+  const [weddings, setWeddings] = useState([])
+  const [clients, setClients] = useState([])
   const [selected, setSelected] = useState(null)
-  const [copied, setCopied] = useState(null)
+  const [showAddClient, setShowAddClient] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
 
-  const updateStatus = (id, status) => setWeddings((items) => items.map((item) => item.id === id ? { ...item, status: Number(status) } : item))
-  const copyMessage = async (wedding) => {
-    const message = `Hi ${wedding.name.split(' ')[0]}! I’m excited to celebrate with you on ${formatDate(wedding.weddingDate)}.`
-    try { await navigator.clipboard.writeText(message) } catch { /* visual-only fallback */ }
-    setCopied(wedding.id)
-    window.setTimeout(() => setCopied(null), 1400)
+  const loadData = async () => {
+    setLoading(true); setError('')
+    try { const [clientData, weddingData] = await Promise.all([json('/clients'), json('/weddings')]); setClients(clientData); setWeddings(weddingData.map(weddingView)) }
+    catch (err) { setError(`${err.message}. Is the FastAPI server running on port 8000?`) }
+    finally { setLoading(false) }
   }
-
+  useEffect(() => { loadData() }, [])
+  const updateStatus = async (wedding, status) => {
+    try { const updated = await json(`/weddings/${wedding.id}`, { method: 'PATCH', body: JSON.stringify({ status: Number(status) }) }); setWeddings((items) => items.map((item) => item.id === wedding.id ? weddingView({ ...updated, client: updated.client || { name: item.name, email: item.email, phone: item.phone, source: item.source, notes: item.notes } }) : item)); setNotice('Status saved') }
+    catch (err) { setError(err.message) }
+  }
   const groups = useMemo(() => {
-    const today = new Date('2026-09-10T12:00:00')
-    const sortItems = (items) => [...items].sort((a, b) => a.status - b.status || a.weddingDate.localeCompare(b.weddingDate))
+    const today = new Date(); const sort = (items) => [...items].sort((a, b) => a.status - b.status || a.weddingDate.localeCompare(b.weddingDate))
     return [
-      { key: 'inquiries', label: 'Inquiries', subtitle: 'Warm leads waiting for their next little yes', color: 'coral', items: sortItems(weddings.filter((item) => item.status > 0 && item.status < 4)) },
-      { key: 'books', label: 'On the Books', subtitle: 'Beautiful days that are officially yours', color: 'mint', items: sortItems(weddings.filter((item) => item.status === 4 && new Date(`${item.weddingDate}T12:00:00`) >= today)) },
-      { key: 'history', label: 'History', subtitle: 'Past celebrations and archived stories', color: 'lilac', items: sortItems(weddings.filter((item) => item.status === 0 || new Date(`${item.weddingDate}T12:00:00`) < today)) },
+      { key: 'inquiries', label: 'Inquiries', subtitle: 'Warm leads waiting for their next little yes', color: 'coral', items: sort(weddings.filter((item) => item.status > 0 && item.status < 4)) },
+      { key: 'books', label: 'On the Books', subtitle: 'Beautiful days that are officially yours', color: 'mint', items: sort(weddings.filter((item) => item.status === 4 && new Date(`${item.weddingDate}T12:00:00`) >= today)) },
+      { key: 'history', label: 'History', subtitle: 'Past celebrations and archived stories', color: 'lilac', items: sort(weddings.filter((item) => item.status === 0 || new Date(`${item.weddingDate}T12:00:00`) < today)) },
     ]
   }, [weddings])
-
-  return (
-    <div className="app-shell">
-      <Header />
-      {selected ? <ProfilePage wedding={selected} onClose={() => setSelected(null)} onStatus={updateStatus} /> : <main className="dashboard">
-        <div className="welcome-row">
-          <div>
-            <p className="eyebrow">Your little corner of calm</p>
-            <h1>Good morning, Tyler <span className="wave">✦</span></h1>
-            <p className="subtitle">A soft landing for every beautiful wedding detail.</p>
-          </div>
-          <div className="dashboard-date"><span className="sun-dot" /> September 10, 2026</div>
-        </div>
-        <div className="stats-row">
-          <Stat label="Upcoming celebrations" value={weddings.filter((item) => item.status === 4).length} accent="peach" />
-          <Stat label="Awaiting a deposit" value={weddings.filter((item) => item.status === 3).length} accent="butter" />
-          <Stat label="Balance to collect" value={formatMoney(weddings.reduce((sum, item) => sum + item.balance, 0))} accent="lavender" />
-        </div>
-        <div className="board-toolbar"><div><strong>Wedding board</strong><span> · keep the good stuff moving</span></div><button className="filter-button">☷ &nbsp; All weddings <span>⌄</span></button></div>
-        <div className="board">
-          {groups.map((group) => <WeddingSection key={group.key} group={group} onSelect={setSelected} onStatus={updateStatus} onCopy={copyMessage} copied={copied} />)}
-        </div>
-      </main>}
-      <Footer />
-    </div>
-  )
+  return <div className="app-shell"><Header onAddClient={() => setShowAddClient(true)} />
+    {selected ? <ProfilePage wedding={selected} onClose={() => setSelected(null)} onSaved={(item) => { setWeddings((items) => items.map((old) => old.id === item.id ? item : old)); setSelected(item) }} /> : <main className="dashboard">
+      <div className="welcome-row"><div><p className="eyebrow">Your little corner of calm</p><h1>Good morning, Tyler <span className="wave">✦</span></h1><p className="subtitle">A soft landing for every beautiful wedding detail.</p></div><div className="dashboard-date"><span className="sun-dot" /> {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</div></div>
+      {error && <div className="api-message error">{error} <button onClick={loadData}>Retry</button></div>}{notice && <div className="api-message success">{notice}</div>}
+      <div className="stats-row"><Stat label="Upcoming celebrations" value={weddings.filter((item) => item.status === 4).length} accent="peach" /><Stat label="Awaiting a deposit" value={weddings.filter((item) => item.status === 3).length} accent="butter" /><Stat label="Clients in your care" value={clients.length} accent="lavender" /></div>
+      <div className="board-toolbar"><div><strong>Wedding board</strong><span> · keep the good stuff moving</span></div><button className="add-button" onClick={() => setShowAddClient(true)}>＋ Add client</button></div>
+      {loading ? <div className="loading-state">Gathering your beautiful beginnings…</div> : <div className="board">{groups.map((group) => <WeddingSection key={group.key} group={group} onSelect={setSelected} onStatus={updateStatus} />)}</div>}
+      <div className="client-strip"><div><p className="eyebrow">Client directory</p><h2>Everyone starts somewhere ✦</h2></div><div className="client-chips">{clients.slice(0, 8).map((client) => <span key={client.id} className="client-chip"><b>{initials(client.name)}</b>{client.name}</span>)}{!clients.length && <span className="muted">No clients yet — add your first one above.</span>}</div></div>
+    </main>}
+    <Footer />{showAddClient && <AddClientModal onClose={() => setShowAddClient(false)} onCreated={(client) => { setClients((items) => [...items, client].sort((a, b) => a.name.localeCompare(b.name))); setShowAddClient(false); setNotice(`${client.name} was added to your client directory`) }} />}</div>
 }
-
-function Header() { return <header className="site-header"><a className="brand" href="#"><span className="brand-mark">✿</span><span>blossom <i>&</i> veil</span></a><nav><a className="active" href="#board">Wedding board</a><a href="#calendar">Calendar <small>soon</small></a><a href="#finances">Finances <small>soon</small></a></nav><button className="avatar" aria-label="Open profile">TR</button></header> }
-function Footer() { return <footer className="site-footer"><span><span className="footer-flower">✿</span> made for beautiful beginnings</span><span>Client dashboard · visual preview</span></footer> }
+function Header({ onAddClient }) { return <header className="site-header"><a className="brand" href="#"><span className="brand-mark">✿</span><span>blossom <i>&</i> veil</span></a><nav><a className="active" href="#board">Wedding board</a><a href="#calendar">Calendar <small>soon</small></a><a href="#finances">Finances <small>soon</small></a></nav><button className="header-add" onClick={onAddClient}>＋ New client</button><button className="avatar" aria-label="Open profile">TR</button></header> }
+function Footer() { return <footer className="site-footer"><span><span className="footer-flower">✿</span> made for beautiful beginnings</span><span>Client dashboard · connected to API</span></footer> }
 function Stat({ label, value, accent }) { return <div className={`stat-card ${accent}`}><span>{label}</span><strong>{value}</strong><b>↗</b></div> }
+function WeddingSection({ group, onSelect, onStatus }) { const [open, setOpen] = useState(true); return <section className="wedding-section"><button className={`section-heading ${group.color}`} onClick={() => setOpen(!open)}><span className="chevron">{open ? '⌄' : '›'}</span><span className="section-dot" /><span className="section-title">{group.label}</span><span className="count">{group.items.length}</span><span className="section-subtitle">{group.subtitle}</span><span className="section-sparkle">✦</span></button>{open && <div className="rows">{group.items.length ? group.items.map((wedding) => <WeddingRow key={wedding.id} wedding={wedding} onSelect={onSelect} onStatus={onStatus} />) : <div className="empty-row">Nothing here yet — a lovely blank canvas.</div>}</div>}</section> }
+function WeddingRow({ wedding, onSelect, onStatus }) { const status = STATUS[wedding.status]; return <div className="wedding-row" onClick={() => onSelect(wedding)}><div className="bride-cell"><span className="initials">{wedding.initials}</span><div><strong>{wedding.name}</strong><small>{wedding.source} · {wedding.people || 0} people</small></div></div><div className="date-cell"><strong>{formatDate(wedding.weddingDate)}</strong><small>{wedding.readyBy} · {wedding.location}</small></div><div className="trial-cell"><span className={`trial-pill ${wedding.bridalTrialStatus}`}>✦ {TRIAL_STATUS[wedding.bridalTrialStatus]}</span></div><div className="balance-cell"><small>balance</small><strong>{formatMoney(wedding.balance)}</strong></div><div className="status-cell" onClick={(event) => event.stopPropagation()}><select className={`status-select ${status.tone}`} value={wedding.status} onChange={(event) => onStatus(wedding, event.target.value)} aria-label={`Status for ${wedding.name}`}>{Object.entries(STATUS).map(([value, option]) => <option key={value} value={value}>{option.label}</option>)}</select></div><span className="row-arrow">›</span></div> }
 
-function WeddingSection({ group, onSelect, onStatus, onCopy, copied }) {
-  const [open, setOpen] = useState(true)
-  return <section className="wedding-section">
-    <button className={`section-heading ${group.color}`} onClick={() => setOpen(!open)}><span className="chevron">{open ? '⌄' : '›'}</span><span className="section-dot" /><span className="section-title">{group.label}</span><span className="count">{group.items.length}</span><span className="section-subtitle">{group.subtitle}</span><span className="section-sparkle">✦</span></button>
-    {open && <div className="rows">{group.items.length ? group.items.map((wedding) => <WeddingRow key={wedding.id} wedding={wedding} onSelect={onSelect} onStatus={onStatus} onCopy={onCopy} copied={copied === wedding.id} />) : <div className="empty-row">Nothing here yet — a lovely blank canvas.</div>}</div>}
-  </section>
-}
+function ProfilePage({ wedding, onClose, onSaved }) { const [draft, setDraft] = useState(wedding); const [saving, setSaving] = useState(false); const update = (field, value) => setDraft((item) => ({ ...item, [field]: value })); const save = async () => { setSaving(true); try { const updated = await json(`/clients/${draft.clientId}`, { method: 'PATCH', body: JSON.stringify({ name: draft.name, email: draft.email, phone: draft.phone, notes: draft.notes, source: draft.source }) }); const result = { ...draft, name: updated.name, email: updated.email || '', phone: updated.phone || '', notes: updated.notes || '', source: updated.source || 'Unknown source', initials: initials(updated.name) }; onSaved(result) } catch (err) { alert(err.message) } finally { setSaving(false) } }; return <main className="profile-page"><button className="back-button" onClick={onClose}>← Back to wedding board</button><div className="profile-hero"><span className="large-initials">{initials(draft.name)}</span><div><p className="eyebrow">Client profile</p><h1>{draft.name}</h1><p>{draft.email} · {draft.phone}</p></div><span className="profile-save">Connected to API</span></div><section className="profile-section"><div className="profile-section-title"><span className="section-number peach-number">01</span><div><p className="eyebrow">The big picture</p><h2>Inquiry summary</h2></div></div><div className="detail-grid editable-grid"><Editable label="Client name" value={draft.name} onChange={(value) => update('name', value)} /><Editable label="Email" value={draft.email} onChange={(value) => update('email', value)} /><Editable label="Phone" value={draft.phone} onChange={(value) => update('phone', value)} /><Editable label="Source" value={draft.source} onChange={(value) => update('source', value)} /><Detail label="Wedding date" value={formatDate(draft.weddingDate)} /><Detail label="Location" value={draft.location} /><div className="editable-select"><label>Workflow status</label><select className={`status-select ${STATUS[draft.status].tone}`} value={draft.status} onChange={async (e) => { const updated = await json(`/weddings/${draft.id}`, { method: 'PATCH', body: JSON.stringify({ status: Number(e.target.value) }) }); const next = weddingView({ ...updated, client: { name: draft.name, email: draft.email, phone: draft.phone, source: draft.source, notes: draft.notes } }); setDraft(next); onSaved(next) }}>{Object.entries(STATUS).map(([value, option]) => <option key={value} value={value}>{option.label}</option>)}</select></div></div><button className="full-button save-button" onClick={save}>{saving ? 'Saving…' : 'Save client details ✦'}</button></section><section className="profile-section trial-section"><div className="profile-section-title"><span className="section-number lilac-number">02</span><div><p className="eyebrow">A little extra magic</p><h2>Bridal trial & details</h2></div></div><div className="detail"><small>Bridal trial status</small><strong>{TRIAL_STATUS[draft.bridalTrialStatus]}</strong></div><div className="detail profile-detail"><small>Party</small><strong>{draft.party}</strong></div><label className="notes-label">Notes<textarea value={draft.notes} onChange={(e) => update('notes', e.target.value)} /></label></section></main> }
+function Detail({ label, value }) { return <div className="detail"><small>{label}</small><strong>{value || '—'}</strong></div> }
+function Editable({ label, value, onChange, type = 'text' }) { return <label className="editable-field"><span>{label}</span><div><input type={type} value={value || ''} onChange={(event) => onChange(event.target.value)} /></div></label> }
 
-function WeddingRow({ wedding, onSelect, onStatus, onCopy, copied }) {
-  const status = STATUS[wedding.status]
-  return <div className="wedding-row" onClick={() => onSelect(wedding)}>
-    <div className="bride-cell"><span className="initials">{wedding.initials}</span><div><strong>{wedding.name}</strong><small>{wedding.source} · {wedding.people} people</small></div></div>
-    <div className="date-cell"><strong>{formatDate(wedding.weddingDate)}</strong><small>{wedding.readyBy} · {wedding.location}</small></div>
-    <div className="trial-cell"><span className={`trial-pill ${wedding.bridalTrialStatus}`}>✦ {TRIAL_STATUS[wedding.bridalTrialStatus]}</span></div>
-    <div className="balance-cell"><small>balance</small><strong>{formatMoney(wedding.balance)}</strong></div>
-    <div className="status-cell" onClick={(event) => event.stopPropagation()}><select className={`status-select ${status.tone}`} value={wedding.status} onChange={(event) => onStatus(wedding.id, event.target.value)} aria-label={`Status for ${wedding.name}`}>{Object.entries(STATUS).map(([value, option]) => <option key={value} value={value}>{option.label}</option>)}</select></div>
-    <button className={`copy-button ${copied ? 'copied' : ''}`} onClick={(event) => { event.stopPropagation(); onCopy(wedding) }}>{copied ? 'Copied ✦' : 'Copy message'}</button>
-  </div>
-}
-
-function ProfilePage({ wedding, onClose, onStatus }) {
-  const [draft, setDraft] = useState(wedding)
-  const update = (field, value) => setDraft((item) => ({ ...item, [field]: value }))
-  return <main className="profile-page">
-    <button className="back-button" onClick={onClose}>← Back to wedding board</button>
-    <div className="profile-hero"><span className="large-initials">{draft.initials}</span><div><p className="eyebrow">Client profile</p><h1>{draft.name}</h1><p>{draft.email} · {draft.phone}</p></div><span className="profile-save">Visual preview · changes are local</span></div>
-    <section className="profile-section"><div className="profile-section-title"><span className="section-number peach-number">01</span><div><p className="eyebrow">The big picture</p><h2>Inquiry summary</h2></div></div><div className="detail-grid editable-grid"><Editable label="Bride name" value={draft.name} onChange={(value) => update('name', value)} /><Editable label="Email" value={draft.email} onChange={(value) => update('email', value)} /><Editable label="Wedding date" type="date" value={draft.weddingDate} onChange={(value) => update('weddingDate', value)} /><Editable label="Location" value={draft.location} onChange={(value) => update('location', value)} /><Editable label="Ready by" value={draft.readyBy} onChange={(value) => update('readyBy', value)} /><Editable label="People / services" value={draft.people} type="number" onChange={(value) => update('people', value)} /><Editable label="Balance remaining" value={draft.balance} type="number" onChange={(value) => update('balance', value)} prefix="$" /><Detail label="Due by" value={dueDate(draft.weddingDate)} /><Detail label="Payment information" value={draft.paid} /><Editable label="Phone" value={draft.phone} onChange={(value) => update('phone', value)} /><Detail label="Assistant" value={draft.assistant ? 'Assistant included' : 'Solo appointment'} /><div className="editable-select"><label>Workflow status</label><select className={`status-select ${STATUS[draft.status].tone}`} value={draft.status} onChange={(e) => { update('status', Number(e.target.value)); onStatus(draft.id, e.target.value) }}>{Object.entries(STATUS).map(([value, option]) => <option key={value} value={value}>{option.label}</option>)}</select></div></div></section>
-    <section className="profile-section trial-section"><div className="profile-section-title"><span className="section-number lilac-number">02</span><div><p className="eyebrow">A little extra magic</p><h2>Bridal trial & details</h2></div></div><div className="editable-select"><label>Bridal trial status</label><select value={draft.bridalTrialStatus} onChange={(e) => update('bridalTrialStatus', e.target.value)}>{Object.entries(TRIAL_STATUS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div><Editable label="Services / party" value={draft.party} onChange={(value) => update('party', value)} /><label className="notes-label">Notes<textarea value={draft.notes} onChange={(e) => update('notes', e.target.value)} /></label><p className="trial-note">Trial details and edits will connect to the API once the visual workflow is approved.</p></section>
-    <section className="profile-section invoice-section"><div className="profile-section-title"><span className="section-number mint-number">03</span><div><p className="eyebrow">The numbers, softly</p><h2>Invoice preview</h2></div></div><div className="invoice-card"><div><span>Current invoice</span><strong>Version 1 · draft preview</strong></div><div className="invoice-total"><small>Remaining</small><strong>{formatMoney(draft.balance)}</strong></div></div><button className="full-button">Open full invoice <span>↗</span></button></section>
-  </main>
-}
-function Detail({ label, value }) { return <div className="detail"><small>{label}</small><strong>{value}</strong></div> }
-function Editable({ label, value, onChange, type = 'text', prefix }) { return <label className="editable-field"><span>{label}</span><div>{prefix && <b>{prefix}</b>}<input type={type} value={value} onChange={(event) => onChange(type === 'number' ? Number(event.target.value) : event.target.value)} /></div></label> }
+function AddClientModal({ onClose, onCreated }) { const [form, setForm] = useState({ name: '', email: '', phone: '', source: '', inquiry_date: new Date().toISOString().slice(0, 10), notes: '' }); const [saving, setSaving] = useState(false); const [error, setError] = useState(''); const update = (field, value) => setForm((item) => ({ ...item, [field]: value })); const submit = async (event) => { event.preventDefault(); setSaving(true); setError(''); try { const client = await json('/clients', { method: 'POST', body: JSON.stringify({ ...form, inquiry_date: form.inquiry_date || null }) }); onCreated(client) } catch (err) { setError(err.message) } finally { setSaving(false) } }; return <div className="modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}><form className="client-modal" onSubmit={submit}><button type="button" className="close-button" onClick={onClose}>×</button><p className="eyebrow">A fresh beginning</p><h2>Add a new client</h2><p className="modal-intro">Start the relationship here. You can add wedding details once the date and venue are ready.</p>{error && <div className="api-message error">{error}</div>}<div className="modal-fields"><Editable label="Name *" value={form.name} onChange={(value) => update('name', value)} /><Editable label="Email" value={form.email} onChange={(value) => update('email', value)} /><Editable label="Phone" value={form.phone} onChange={(value) => update('phone', value)} /><Editable label="Source" value={form.source} onChange={(value) => update('source', value)} /><Editable label="Inquiry date" type="date" value={form.inquiry_date} onChange={(value) => update('inquiry_date', value)} /></div><label className="notes-label">Notes<textarea value={form.notes} onChange={(event) => update('notes', event.target.value)} /></label><button className="full-button" disabled={saving}>{saving ? 'Adding client…' : 'Add client ✦'}</button></form></div> }
 
 createRoot(document.getElementById('root')).render(<App />)

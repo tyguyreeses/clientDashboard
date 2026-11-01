@@ -4,14 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="15e1617a-e5c3-4f22-8e4a-33581a3de577" name="Changes" comment="fix relative imports">
+    <list default="true" id="15e1617a-e5c3-4f22-8e4a-33581a3de577" name="Changes" comment="initial frontend pass">
+      <change beforePath="$PROJECT_DIR$/.idea/clientDashboard.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/client-dashboard.iml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/modules.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pyproject.toml" beforeDir="false" afterPath="$PROJECT_DIR$/pyproject.toml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/client_dashboard/api/schemas.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/client_dashboard/api/schemas.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/client_dashboard/models.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/client_dashboard/models.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/client_dashboard/scripts/init_db.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/client_dashboard/scripts/init_db.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/test_api.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_api.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -21,21 +17,21 @@
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
-  <component name="GitHubPullRequestSearchHistory"><![CDATA[{
-  "lastFilter": {
-    "state": "OPEN",
-    "assignee": "tyguyreeses"
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;tyguyreeses&quot;
   }
-}]]></component>
-  <component name="GithubPullRequestsUISettings"><![CDATA[{
-  "selectedUrlAndAccountId": {
-    "url": "https://github.com/tyguyreeses/clientDashboard.git",
-    "accountId": "1b4dda5d-71f4-4030-bbac-f6281de80d93"
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/tyguyreeses/clientDashboard.git&quot;,
+    &quot;accountId&quot;: &quot;1b4dda5d-71f4-4030-bbac-f6281de80d93&quot;
   }
-}]]></component>
-  <component name="ProjectColorInfo"><![CDATA[{
-  "associatedIndex": 5
-}]]></component>
+}</component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 5
+}</component>
   <component name="ProjectId" id="3J7Htl62p667hVit3gSFmNZFS5p" />
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
@@ -46,13 +42,18 @@
     "ModuleVcsDetector.initialDetectionPerformed": "true",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
-    "git-widget-placeholder": "main"
+    "RunOnceActivity.git.unshallow": "true",
+    "RunOnceActivity.typescript.service.memoryLimit.init": "true",
+    "codeWithMe.voiceChat.enabledByDefault": "false",
+    "git-widget-placeholder": "main",
+    "nodejs_package_manager_path": "npm",
+    "python.packages.toolwindow.project.migrated.to.right.top.v2": "true"
   }
 }]]></component>
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-python-sdk-ce6832f46686-7b97d883f26b-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-252.25557.178" />
+        <option value="bundled-python-sdk-eff1e8def5f5-5bd6d13a2a75-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-262.10315.174" />
       </set>
     </attachedChunks>
   </component>
@@ -104,8 +105,19 @@
       <option name="project" value="LOCAL" />
       <updated>1789051332866</updated>
     </task>
-    <option name="localTasksCounter" value="6" />
+    <task id="LOCAL-00006" summary="initial frontend pass">
+      <option name="closed" value="true" />
+      <created>1789099844393</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1789099844393</updated>
+    </task>
+    <option name="localTasksCounter" value="7" />
     <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="basic db setup" />
@@ -113,7 +125,8 @@
     <MESSAGE value="add backend initial pass" />
     <MESSAGE value="backend second pass" />
     <MESSAGE value="fix relative imports" />
-    <option name="LAST_COMMIT_MESSAGE" value="fix relative imports" />
+    <MESSAGE value="initial frontend pass" />
+    <option name="LAST_COMMIT_MESSAGE" value="initial frontend pass" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
