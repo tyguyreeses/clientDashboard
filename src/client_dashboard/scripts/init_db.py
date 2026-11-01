@@ -19,6 +19,13 @@ EXPECTED_TABLES = (
 )
 INVOICE_VERSION_INDEX = "uq_invoices_wedding_id_version_number"
 WEDDING_TRIAL_STATUS_COLUMN = "bridal_trial_status"
+CLIENT_INQUIRY_COLUMNS = {
+    "planning_stage": "VARCHAR(30)",
+    "makeup_interest": "BOOLEAN",
+    "recommendations_if_unavailable": "BOOLEAN",
+    "referral_name": "VARCHAR(255)",
+    "hair_service_details": "TEXT",
+}
 
 
 def _expected_columns() -> dict[str, set[str]]:
@@ -86,6 +93,15 @@ def _ensure_bridal_trial_status() -> None:
             )
 
 
+def _ensure_client_inquiry_fields() -> None:
+    with engine.begin() as connection:
+        inspector = inspect(connection)
+        columns = {column["name"] for column in inspector.get_columns("clients")}
+        for name, definition in CLIENT_INQUIRY_COLUMNS.items():
+            if name not in columns:
+                connection.exec_driver_sql(f"ALTER TABLE clients ADD COLUMN {name} {definition}")
+
+
 def main() -> None:
     # Migrate the legacy invoice table before create_all attempts to create
     # the current unique index, which depends on version_number.
@@ -93,9 +109,12 @@ def main() -> None:
         _ensure_invoice_versioning()
     if "weddings" in inspect(engine).get_table_names():
         _ensure_bridal_trial_status()
+    if "clients" in inspect(engine).get_table_names():
+        _ensure_client_inquiry_fields()
     models.Base.metadata.create_all(bind=engine)
     _ensure_invoice_versioning()
     _ensure_bridal_trial_status()
+    _ensure_client_inquiry_fields()
 
     with engine.connect() as connection:
         connection.execute(select(1))

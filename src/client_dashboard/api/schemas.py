@@ -29,6 +29,11 @@ class ClientBase(BaseModel):
     source: str | None = Field(default=None, max_length=100)
     inquiry_date: date | None = None
     notes: str | None = None
+    planning_stage: str | None = Field(default=None, max_length=30)
+    makeup_interest: bool | None = None
+    recommendations_if_unavailable: bool | None = None
+    referral_name: str | None = Field(default=None, max_length=255)
+    hair_service_details: str | None = None
 
 
 class ClientCreate(ClientBase):
@@ -43,6 +48,11 @@ class ClientUpdate(BaseModel):
     source: str | None = Field(default=None, max_length=100)
     inquiry_date: date | None = None
     notes: str | None = None
+    planning_stage: str | None = Field(default=None, max_length=30)
+    makeup_interest: bool | None = None
+    recommendations_if_unavailable: bool | None = None
+    referral_name: str | None = Field(default=None, max_length=255)
+    hair_service_details: str | None = None
 
 
 class ClientRead(ClientBase, TimestampRead):

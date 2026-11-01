@@ -55,6 +55,11 @@ class Client(TimestampMixin, Base):
     source: Mapped[str | None] = mapped_column(String(100))
     inquiry_date: Mapped[date | None] = mapped_column(Date)
     notes: Mapped[str | None] = mapped_column(Text)
+    planning_stage: Mapped[str | None] = mapped_column(String(30))
+    makeup_interest: Mapped[bool | None] = mapped_column(Boolean)
+    recommendations_if_unavailable: Mapped[bool | None] = mapped_column(Boolean)
+    referral_name: Mapped[str | None] = mapped_column(String(255))
+    hair_service_details: Mapped[str | None] = mapped_column(Text)
 
     weddings: Mapped[list[Wedding]] = relationship(
         back_populates="client",
