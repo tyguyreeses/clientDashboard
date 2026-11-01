@@ -1,0 +1,57 @@
+export function Header({ page, onNavigate, onAddClient }) {
+  return (
+    <header className="site-header">
+      <a className="brand" href="#" onClick={() => onNavigate("dashboard")}>
+        <span className="brand-mark">✿</span>
+        <span>
+          blossom <i>&</i> veil
+        </span>
+      </a>
+      <nav>
+        <a
+          className={page === "dashboard" ? "active" : ""}
+          href="#board"
+          onClick={(event) => {
+            event.preventDefault();
+            onNavigate("dashboard");
+          }}
+        >
+          Wedding board
+        </a>
+        <a
+          className={page === "clients" ? "active" : ""}
+          href="#clients"
+          onClick={(event) => {
+            event.preventDefault();
+            onNavigate("clients");
+          }}
+        >
+          Clients
+        </a>
+        <a href="#calendar">
+          Calendar <small>soon</small>
+        </a>
+        <a href="#finances">
+          Finances <small>soon</small>
+        </a>
+      </nav>
+      <button className="header-add" onClick={onAddClient}>
+        ＋ New client
+      </button>
+      <button className="avatar" aria-label="Open profile">
+        TR
+      </button>
+    </header>
+  );
+}
+
+export function Footer() {
+  return (
+    <footer className="site-footer">
+      <span>
+        <span className="footer-flower">✿</span> Client dashboard
+      </span>
+      <span>Connected to API</span>
+    </footer>
+  );
+}
