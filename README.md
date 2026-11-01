@@ -1,22 +1,16 @@
-# Client Dashboard Backend
+# Client Dashboard
 
-## Local Database Setup
+## Run
 
-1. Create and activate a virtual environment.
-2. Install dependencies with `pip install -e .`.
-3. Create and verify the schema with `python -m client_dashboard.scripts.init_db`.
-
-## API Layer
-
-Start the FastAPI app with:
+Terminal 1:
 
 ```bash
-uvicorn client_dashboard.main:app --reload
+.venv/bin/python -m pip install -e .
+PYTHONPATH=src .venv/bin/python -m client_dashboard.scripts.init_db
+PYTHONPATH=src .venv/bin/python -m uvicorn client_dashboard.main:app --reload --port 8000
 ```
 
-## Frontend Preview
-
-The visual-only React dashboard lives in `frontend/` and uses local fixture data while the profile workflow is being designed:
+Terminal 2:
 
 ```bash
 cd frontend
@@ -24,9 +18,7 @@ npm install
 npm run dev
 ```
 
-The frontend includes the wedding board, playful status interactions, a client profile drawer, and placeholder invoice actions. It does not write to the backend yet.
-
-The API exposes CRUD routes for clients, weddings, wedding party members, pricing versions, and payments. Invoices are currently read-only API records; they are intended to preserve invoice history.
+Open http://localhost:5173.
 
 ## Database Structure
 
