@@ -846,6 +846,26 @@ nav small {
 .profile-detail {
   margin-top: 20px;
 }
+.profile-backdrop {
+  overflow: auto;
+  align-items: start;
+}
+.profile-modal {
+  width: min(980px, 100%);
+  max-height: 92vh;
+  overflow: auto;
+  position: relative;
+  margin: 20px 0;
+  padding: 34px 38px;
+  border: 1px solid var(--line);
+  border-radius: 19px;
+  background: var(--paper);
+  box-shadow: 0 25px 70px rgba(80, 50, 40, 0.2);
+}
+.profile-modal > .close-button {
+  top: 18px;
+  right: 18px;
+}
 .modal-backdrop {
   position: fixed;
   inset: 0;

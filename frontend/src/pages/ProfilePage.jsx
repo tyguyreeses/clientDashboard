@@ -23,6 +23,10 @@ export function ProfilePage({ wedding, onClose, onSaved }) {
   const [error, setError] = useState("");
   const update = (field, value) =>
     setDraft((item) => ({ ...item, [field]: value }));
+  const requestClose = () => {
+    if (editingSection && !window.confirm("Current changes will be lost. Close without saving?")) return;
+    onClose();
+  };
 
   const save = async () => {
     setSaving(true);
@@ -83,10 +87,9 @@ export function ProfilePage({ wedding, onClose, onSaved }) {
   };
 
   return (
-    <main className="profile-page">
-      <button className="back-button" onClick={onClose}>
-        ← Back to wedding board
-      </button>
+    <div className="modal-backdrop profile-backdrop" onMouseDown={(event) => event.target === event.currentTarget && requestClose()}>
+      <main className="profile-page profile-modal">
+        <button className="close-button" onClick={requestClose} aria-label="Close profile">×</button>
       {error && <div className="api-message error">{error}</div>}
       <div className="profile-hero">
         <span className="large-initials">{initials(draft.name)}</span>
@@ -251,6 +254,7 @@ export function ProfilePage({ wedding, onClose, onSaved }) {
         </div>
         {editingSection === "additional" ? <label className="notes-label">Notes<textarea value={draft.notes || ""} onChange={(event) => update("notes", event.target.value)} /></label> : <Detail label="Notes" value={draft.notes} />}
       </section>
-    </main>
+      </main>
+    </div>
   );
 }

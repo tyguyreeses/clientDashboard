@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Editable, SelectField } from "./FormFields";
 import { json } from "../utils";
 
@@ -21,8 +21,14 @@ export function AddClientModal({ onClose, onCreated }) {
     planning_stage: "",
     recommendations: "",
   });
+  const initialForm = useRef(form);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const requestClose = () => {
+    const dirty = JSON.stringify(form) !== JSON.stringify(initialForm.current);
+    if (dirty && !window.confirm("Current changes will be lost. Close without saving?")) return;
+    onClose();
+  };
   const update = (field, value) =>
     setForm((item) => ({ ...item, [field]: value }));
   const submit = async (event) => {
@@ -69,10 +75,10 @@ export function AddClientModal({ onClose, onCreated }) {
   return (
     <div
       className="modal-backdrop"
-      onMouseDown={(event) => event.target === event.currentTarget && onClose()}
+      onMouseDown={(event) => event.target === event.currentTarget && requestClose()}
     >
       <form className="client-modal" onSubmit={submit}>
-        <button type="button" className="close-button" onClick={onClose}>
+        <button type="button" className="close-button" onClick={requestClose}>
           ×
         </button>
         <h2>New client inquiry</h2>
