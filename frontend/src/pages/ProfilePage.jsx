@@ -11,7 +11,6 @@ import {
   STATUS,
   TRIAL_STATUS,
   weddingView,
-  initials,
   HAIRSTYLE,
   PARTY_ROLE,
 } from "../utils";
@@ -92,7 +91,6 @@ export function ProfilePage({ wedding, onClose, onSaved }) {
         <button className="close-button" onClick={requestClose} aria-label="Close profile">×</button>
       {error && <div className="api-message error">{error}</div>}
       <div className="profile-hero">
-        <span className="large-initials">{initials(draft.name)}</span>
         <div>
           <p className="eyebrow">Client</p>
           {editingSection === "header" ? (
