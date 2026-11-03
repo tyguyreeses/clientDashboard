@@ -115,19 +115,15 @@ export function AddClientModal({ onClose, onCreated }) {
             required
             onChange={(value) => update("location", value)}
           />
-          <label className="editable-field">
-            <span>People needing hair done *</span>
-            <div>
-              <textarea
-                required
-                value={form.party_details}
-                placeholder="Bride, MOB, 4 bridesmaids..."
-                onChange={(event) =>
-                  update("party_details", event.target.value)
-                }
-              />
-            </div>
-          </label>
+          <Editable
+            label="People needing hair done *"
+            type="number"
+            min="0"
+            step="1"
+            value={form.party_details}
+            required
+            onChange={(value) => update("party_details", value)}
+          />
           <Editable
             label="Ready-by time *"
             type="time"
