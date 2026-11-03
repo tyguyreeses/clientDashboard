@@ -16,22 +16,24 @@ import {
 } from "../utils";
 
 const TRIAL_STEPS = ["interested", "link_sent", "booked", "complete"];
+const TRIAL_PROGRESS_COLORS = ["var(--coral)", "#e6ba62", "#a6aa5a", "#4d9a6d"];
 
 function TrialBoard({ status, onChange }) {
-  const [dragging, setDragging] = useState(false);
   if (["not_interested", "cancelled"].includes(status)) return null;
+  const currentIndex = Math.max(0, TRIAL_STEPS.indexOf(status));
   return (
     <div className="trial-kanban">
-      <div className="trial-kanban-label">Bridal trial</div>
+      <div className="trial-kanban-label">Bridal trial status</div>
       <div className="trial-kanban-columns">
         {TRIAL_STEPS.map((step) => (
-          <div className={`trial-step ${status === step ? "active" : ""}`} key={step} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); setDragging(false); onChange(step); }}>
-            <span>{TRIAL_STATUS[step]}</span>
-            {status === step && <span className="trial-star" draggable onDragStart={() => setDragging(true)} onDragEnd={() => setDragging(false)} aria-label="Drag bridal trial">★</span>}
-          </div>
+          <button type="button" className={`trial-step ${status === step ? "active" : ""}`} key={step} onClick={() => onChange(step)}>
+            {TRIAL_STATUS[step]}
+          </button>
         ))}
       </div>
-      {dragging && <div className="trial-cancel-zone" onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); setDragging(false); onChange("cancelled"); }}>Cancel trial</div>}
+      <div className="trial-progress" aria-label={`Bridal trial progress: ${TRIAL_STATUS[status]}`}>
+        <div className="trial-progress-fill" style={{ width: `${((currentIndex + 1) / TRIAL_STEPS.length) * 100}%`, backgroundColor: TRIAL_PROGRESS_COLORS[currentIndex] }} />
+      </div>
     </div>
   );
 }
@@ -180,9 +182,9 @@ export function ProfilePage({ wedding, onClose, onSaved }) {
           {editingSection === "wedding" ? (
             <div className="editable-select"><label>Workflow status</label><select value={draft.status} onChange={(event) => update("status", event.target.value)}>{Object.entries(STATUS).map(([value, option]) => <option key={value} value={value}>{option.label}</option>)}</select></div>
           ) : <Detail label="Workflow status" value={STATUS[draft.status]?.label} />}
-          {editingSection === "wedding" ? (
+          {editingSection === "wedding" && (
             <div className="editable-select"><label>Bridal trial status</label><select value={draft.bridalTrialStatus} onChange={(event) => update("bridalTrialStatus", event.target.value)}>{Object.entries(TRIAL_STATUS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>
-          ) : <Detail label="Bridal trial status" value={TRIAL_STATUS[draft.bridalTrialStatus]} />}
+          )}
         </div>
         <TrialBoard status={draft.bridalTrialStatus} onChange={(value) => update("bridalTrialStatus", value)} />
         <div className="party-member-list">

@@ -382,12 +382,13 @@ nav small {
 .drag-cancel.drag-target { color: #fff; background: #d95757; border-color: #d95757; }
 .drag-complete.drag-target { color: #fff; background: #4d9a6d; border-color: #4d9a6d; }
 .trial-kanban { grid-column: 1 / -1; margin: 6px 0 18px; }
-.trial-kanban-label { margin-bottom: 8px; color: var(--muted); font-size: 9px; text-transform: uppercase; letter-spacing: .1em; }
+.trial-kanban-label { display: block; margin-bottom: 7px; color: var(--muted); text-transform: uppercase; font-size: 9px; letter-spacing: 0.1em; }
 .trial-kanban-columns { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; }
-.trial-step { min-height: 45px; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 7px; border: 1px solid var(--line); border-radius: 9px; color: var(--muted); background: #fffdf9; font-size: 10px; }
+.trial-step { min-height: 45px; display: flex; align-items: center; justify-content: center; padding: 7px; border: 1px solid var(--line); border-radius: 9px; color: var(--muted); background: #fffdf9; font: inherit; font-size: 10px; cursor: pointer; transition: background 0.22s, border-color 0.22s, transform 0.3s cubic-bezier(0.2, 1.4, 0.4, 1); }
+.trial-step:hover { background: #fff8f2; border-color: var(--coral); transform: translateY(-2px); }
 .trial-step.active { border-color: #e6ba62; background: #fff8df; color: #7e622a; }
-.trial-star { font-size: 17px; color: #d69a24; cursor: grab; }
-.trial-cancel-zone { display: grid; place-items: center; min-height: 40px; margin-top: 8px; font-size: 11px; }
+.trial-progress { height: 5px; margin: 12px 2px 0; overflow: hidden; border-radius: 999px; background: var(--line); }
+.trial-progress-fill { height: 100%; border-radius: inherit; background-color: var(--coral); transition: width 0.45s cubic-bezier(0.2, 1.4, 0.4, 1), background-color 0.45s ease; }
 .wedding-row {
   min-height: 78px;
   display: grid;

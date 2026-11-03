@@ -143,11 +143,15 @@ def create_wedding(payload: WeddingCreate, session: Session = Depends(get_db)) -
     wedding = Wedding(**payload.model_dump(exclude={"hair_service_count"}))
     session.add(wedding)
     session.flush()
-    for _ in range(initial_count):
+    for index in range(initial_count):
         session.add(
             WeddingPartyMember(
                 wedding_id=wedding.id,
-                role=WeddingPartyMember.ROLE_BRIDAL_PARTY,
+                role=(
+                    WeddingPartyMember.ROLE_BRIDE
+                    if index == 0
+                    else WeddingPartyMember.ROLE_BRIDAL_PARTY
+                ),
                 hairstyle=WeddingPartyMember.HAIRSTYLE_UPDO,
                 assistant=False,
             )

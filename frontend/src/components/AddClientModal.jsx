@@ -15,7 +15,7 @@ export function AddClientModal({ onClose, onCreated }) {
     wedding_date: "",
     location: "",
     ready_by: "",
-    party_details: "",
+    party_details: "1",
     makeup: "",
     bridal_trial: "",
     planning_stage: "",
