@@ -18,7 +18,7 @@ import {
 
 export function ProfilePage({ wedding, onClose, onSaved }) {
   const [draft, setDraft] = useState(wedding);
-  const [editing, setEditing] = useState(false);
+  const [editingSection, setEditingSection] = useState(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const update = (field, value) =>
@@ -74,7 +74,7 @@ export function ProfilePage({ wedding, onClose, onSaved }) {
       const result = weddingView({ ...refreshedWedding, client });
       onSaved(result);
       setDraft(result);
-      setEditing(false);
+      setEditingSection(null);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -92,7 +92,7 @@ export function ProfilePage({ wedding, onClose, onSaved }) {
         <span className="large-initials">{initials(draft.name)}</span>
         <div>
           <p className="eyebrow">Client</p>
-          {editing ? (
+          {editingSection === "header" ? (
             <input
               className="profile-name-input"
               value={draft.name}
@@ -101,7 +101,7 @@ export function ProfilePage({ wedding, onClose, onSaved }) {
           ) : (
             <h1>{draft.name}</h1>
           )}
-          {editing ? (
+          {editingSection === "header" ? (
             <div className="profile-contact-edit">
               <input
                 value={draft.email}
@@ -118,7 +118,7 @@ export function ProfilePage({ wedding, onClose, onSaved }) {
           ) : (
             <p>{draft.email || "Email not provided"} · {draft.phone || "Phone not provided"}</p>
           )}
-          {editing && (
+          {editingSection === "header" && (
             <input
               className="profile-inquiry-date"
               type="date"
@@ -127,23 +127,15 @@ export function ProfilePage({ wedding, onClose, onSaved }) {
               onChange={(event) => update("inquiryDate", event.target.value)}
             />
           )}
-          {!editing && <p>Inquiry: {formatDate(draft.inquiryDate)}</p>}
+          {editingSection !== "header" && <p>Inquiry: {formatDate(draft.inquiryDate)}</p>}
         </div>
         <div className="profile-actions">
-          {editing ? (
+          {editingSection === "header" ? (
             <>
-              <button className="profile-save" onClick={save} disabled={saving}>
-                {saving ? "Saving…" : "Save"}
-              </button>
-              <button className="profile-cancel" onClick={() => { setDraft(wedding); setEditing(false); }}>
-                Cancel
-              </button>
+              <button className="profile-save" onClick={save} disabled={saving}>{saving ? "Saving…" : "Save"}</button>
+              <button className="profile-cancel" onClick={() => { setDraft(wedding); setEditingSection(null); }}>Cancel</button>
             </>
-          ) : (
-            <button className="profile-save" onClick={() => setEditing(true)}>
-              Edit
-            </button>
-          )}
+          ) : <button className="profile-save" onClick={() => setEditingSection("header")}>Edit</button>}
         </div>
       </div>
 
@@ -151,21 +143,22 @@ export function ProfilePage({ wedding, onClose, onSaved }) {
         <div className="profile-section-title">
           <span className="section-number lilac-number">01</span>
           <div><p className="eyebrow">Details</p><h2>Wedding details</h2></div>
+          {editingSection === "wedding" ? <div className="section-actions"><button className="profile-save" onClick={save} disabled={saving}>{saving ? "Saving…" : "Save"}</button><button className="profile-cancel" onClick={() => { setDraft(wedding); setEditingSection(null); }}>Cancel</button></div> : <button className="profile-save" onClick={() => setEditingSection("wedding")}>Edit</button>}
         </div>
         <div className="detail-grid">
-          {editing ? (
+          {editingSection === "wedding" ? (
             <Editable label="Wedding date" type="date" value={draft.weddingDate} onChange={(value) => update("weddingDate", value)} />
           ) : <Detail label="Wedding date" value={formatDate(draft.weddingDate)} />}
-          {editing ? (
+          {editingSection === "wedding" ? (
             <Editable label="Location" value={draft.location === "Location TBD" ? "" : draft.location} onChange={(value) => update("location", value)} />
           ) : <Detail label="Location" value={draft.location} />}
-          {editing ? (
+          {editingSection === "wedding" ? (
             <Editable label="Ready-by time" type="time" step={15 * 60} min="01:00" max="12:00" value={draft.readyBy} onChange={(value) => update("readyBy", value)} />
           ) : <Detail label="Ready by" value={draft.readyBy} />}
-          {editing ? (
+          {editingSection === "wedding" ? (
             <div className="editable-select"><label>Workflow status</label><select value={draft.status} onChange={(event) => update("status", event.target.value)}>{Object.entries(STATUS).map(([value, option]) => <option key={value} value={value}>{option.label}</option>)}</select></div>
           ) : <Detail label="Workflow status" value={STATUS[draft.status]?.label} />}
-          {editing ? (
+          {editingSection === "wedding" ? (
             <div className="editable-select"><label>Bridal trial status</label><select value={draft.bridalTrialStatus} onChange={(event) => update("bridalTrialStatus", event.target.value)}>{Object.entries(TRIAL_STATUS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>
           ) : <Detail label="Bridal trial status" value={TRIAL_STATUS[draft.bridalTrialStatus]} />}
         </div>
@@ -175,7 +168,7 @@ export function ProfilePage({ wedding, onClose, onSaved }) {
           </div>
           {(draft.partyMembers || []).map((member, index) => (
             <div className="party-member-row" key={member.id || `new-${index}`}>
-              {editing ? (
+              {editingSection === "wedding" ? (
                 <select
                   value={member.role}
                   onChange={(event) =>
@@ -192,7 +185,7 @@ export function ProfilePage({ wedding, onClose, onSaved }) {
                   ))}
                 </select>
               ) : <span>{PARTY_ROLE[member.role] || "Other"}</span>}
-              {editing ? (
+              {editingSection === "wedding" ? (
                 <select
                   value={member.hairstyle}
                   onChange={(event) =>
@@ -210,7 +203,7 @@ export function ProfilePage({ wedding, onClose, onSaved }) {
                 </select>
               ) : <span>{HAIRSTYLE[member.hairstyle]}</span>}
               <label className="assistant-checkbox">
-                <input type="checkbox" checked={Boolean(member.assistant)} disabled={!editing} onChange={(event) => setDraft((item) => ({ ...item, partyMembers: item.partyMembers.map((old, oldIndex) => oldIndex === index ? { ...old, assistant: event.target.checked } : old) }))} />
+                <input type="checkbox" checked={Boolean(member.assistant)} disabled={editingSection !== "wedding"} onChange={(event) => setDraft((item) => ({ ...item, partyMembers: item.partyMembers.map((old, oldIndex) => oldIndex === index ? { ...old, assistant: event.target.checked } : old) }))} />
                 Assistant
               </label>
             </div>
@@ -223,12 +216,13 @@ export function ProfilePage({ wedding, onClose, onSaved }) {
         <div className="profile-section-title">
           <span className="section-number peach-number">02</span>
           <div><p className="eyebrow">Client information</p><h2>Additional details</h2></div>
+          {editingSection === "additional" ? <div className="section-actions"><button className="profile-save" onClick={save} disabled={saving}>{saving ? "Saving…" : "Save"}</button><button className="profile-cancel" onClick={() => { setDraft(wedding); setEditingSection(null); }}>Cancel</button></div> : <button className="profile-save" onClick={() => setEditingSection("additional")}>Edit</button>}
         </div>
         <div className="detail-grid">
-          {editing ? <Editable label="Source" value={draft.source} onChange={(value) => update("source", value)} /> : <Detail label="Source" value={draft.source} />}
-          {editing ? <Editable label="Social media" value={draft.socialMedia} onChange={(value) => update("socialMedia", value)} /> : <Detail label="Social media" value={draft.socialMedia} />}
-          {editing ? <Editable label="Referral name" value={draft.referralName} onChange={(value) => update("referralName", value)} /> : <Detail label="Referral name" value={draft.referralName} />}
-          {editing ? (
+          {editingSection === "additional" ? <Editable label="Source" value={draft.source} onChange={(value) => update("source", value)} /> : <Detail label="Source" value={draft.source} />}
+          {editingSection === "additional" ? <Editable label="Social media" value={draft.socialMedia} onChange={(value) => update("socialMedia", value)} /> : <Detail label="Social media" value={draft.socialMedia} />}
+          {editingSection === "additional" ? <Editable label="Referral name" value={draft.referralName} onChange={(value) => update("referralName", value)} /> : <Detail label="Referral name" value={draft.referralName} />}
+          {editingSection === "additional" ? (
             <SelectField
               label="Planning stage"
               value={draft.planningStage}
@@ -240,14 +234,14 @@ export function ProfilePage({ wedding, onClose, onSaved }) {
               ]}
             />
           ) : <Detail label="Planning stage" value={draft.planningStage} />}
-          {editing ? (
+          {editingSection === "additional" ? (
             <BooleanField
               label="Interested in makeup"
               value={draft.makeupInterest}
               onChange={(value) => update("makeupInterest", value)}
             />
           ) : <Detail label="Interested in makeup" value={draft.makeupInterest == null ? "Not specified" : draft.makeupInterest ? "Yes" : "No"} />}
-          {editing ? (
+          {editingSection === "additional" ? (
             <BooleanField
               label="Recommendations if unavailable"
               value={draft.recommendationsIfUnavailable}
@@ -255,7 +249,7 @@ export function ProfilePage({ wedding, onClose, onSaved }) {
             />
           ) : <Detail label="Recommendations if unavailable" value={draft.recommendationsIfUnavailable == null ? "Not specified" : draft.recommendationsIfUnavailable ? "Yes" : "No"} />}
         </div>
-        {editing ? <label className="notes-label">Notes<textarea value={draft.notes || ""} onChange={(event) => update("notes", event.target.value)} /></label> : <Detail label="Notes" value={draft.notes} />}
+        {editingSection === "additional" ? <label className="notes-label">Notes<textarea value={draft.notes || ""} onChange={(event) => update("notes", event.target.value)} /></label> : <Detail label="Notes" value={draft.notes} />}
       </section>
     </main>
   );

@@ -972,6 +972,15 @@ nav small {
   gap: 12px;
   margin-bottom: 23px;
 }
+.profile-section-title > .profile-save,
+.profile-section-title > .section-actions {
+  margin-left: auto;
+}
+.section-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 .profile-section-title h3 {
   margin: 0;
   font:
