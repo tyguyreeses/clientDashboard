@@ -6,8 +6,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-WeddingStatus = Literal[0, 1, 2, 3, 4]
-BridalTrialStatus = Literal["not_interested", "interested", "link_sent", "booked", "cancelled"]
+WeddingStatus = Literal[0, 1, 2, 3, 4, 5, 6]
+BridalTrialStatus = Literal["not_interested", "interested", "link_sent", "booked", "complete", "cancelled"]
 PartyRole = Literal["B", "P", "J", "F", "M", "O"]
 HairStyle = Literal["U", "D"]
 

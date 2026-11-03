@@ -15,6 +15,27 @@ import {
   PARTY_ROLE,
 } from "../utils";
 
+const TRIAL_STEPS = ["interested", "link_sent", "booked", "complete"];
+
+function TrialBoard({ status, onChange }) {
+  const [dragging, setDragging] = useState(false);
+  if (["not_interested", "cancelled"].includes(status)) return null;
+  return (
+    <div className="trial-kanban">
+      <div className="trial-kanban-label">Bridal trial</div>
+      <div className="trial-kanban-columns">
+        {TRIAL_STEPS.map((step) => (
+          <div className={`trial-step ${status === step ? "active" : ""}`} key={step} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); setDragging(false); onChange(step); }}>
+            <span>{TRIAL_STATUS[step]}</span>
+            {status === step && <span className="trial-star" draggable onDragStart={() => setDragging(true)} onDragEnd={() => setDragging(false)} aria-label="Drag bridal trial">★</span>}
+          </div>
+        ))}
+      </div>
+      {dragging && <div className="trial-cancel-zone" onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); setDragging(false); onChange("cancelled"); }}>Cancel trial</div>}
+    </div>
+  );
+}
+
 export function ProfilePage({ wedding, onClose, onSaved }) {
   const [draft, setDraft] = useState(wedding);
   const [editingSection, setEditingSection] = useState(null);
@@ -163,6 +184,7 @@ export function ProfilePage({ wedding, onClose, onSaved }) {
             <div className="editable-select"><label>Bridal trial status</label><select value={draft.bridalTrialStatus} onChange={(event) => update("bridalTrialStatus", event.target.value)}>{Object.entries(TRIAL_STATUS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>
           ) : <Detail label="Bridal trial status" value={TRIAL_STATUS[draft.bridalTrialStatus]} />}
         </div>
+        <TrialBoard status={draft.bridalTrialStatus} onChange={(value) => update("bridalTrialStatus", value)} />
         <div className="party-member-list">
           <div className="party-member-heading grouped-party-heading">
             <strong>Type</strong><strong>Style</strong><strong>Assistant</strong>

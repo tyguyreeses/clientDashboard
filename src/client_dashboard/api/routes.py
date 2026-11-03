@@ -198,6 +198,8 @@ def get_wedding(wedding_id: int, session: Session = Depends(get_db)) -> Wedding:
 def update_wedding(wedding_id: int, payload: WeddingUpdate, session: Session = Depends(get_db)) -> Wedding:
     wedding = _get_or_404(session, Wedding, wedding_id, "Wedding not found")
     updates = payload.model_dump(exclude_unset=True)
+    if updates.get("status") in (Wedding.STATUS_CANCELLED, Wedding.STATUS_COMPLETED):
+        wedding.client.archived = True
     if updates.get("status") == Wedding.STATUS_RESPONDED and wedding.invoice_sent_at is None:
         updates["invoice_sent_at"] = datetime.now(timezone.utc)
     if "client_id" in updates:

@@ -3,7 +3,7 @@ import { AddClientModal } from "./components/AddClientModal";
 import { Footer, Header } from "./components/Layout";
 import { ClientsPage } from "./pages/ClientsPage";
 import { ProfilePage } from "./pages/ProfilePage";
-import { Stat, WeddingSection } from "./components/WeddingBoard";
+import { KanbanBoard, Stat } from "./components/WeddingBoard";
 import { initials, json, weddingView } from "./utils";
 
 export function App() {
@@ -44,7 +44,9 @@ export function App() {
     }
   };
 
-  const updateStatus = async (wedding, status) => {
+  const updateStatus = async (weddingOrId, status) => {
+    const wedding = typeof weddingOrId === "object" ? weddingOrId : weddings.find((item) => item.id === Number(weddingOrId));
+    if (!wedding) return;
     try {
       const updated = await json(`/weddings/${wedding.id}`, {
         method: "PATCH",
@@ -72,46 +74,14 @@ export function App() {
     }
   };
   const groups = useMemo(() => {
-    const today = new Date();
-    const sort = (items) =>
-      [...items].sort(
-        (a, b) =>
-          a.status - b.status || a.weddingDate.localeCompare(b.weddingDate),
-      );
-    return [
-      {
-        key: "inquiries",
-        label: "Inquiries",
-        color: "coral",
-        items: sort(
-          weddings.filter((item) => item.status > 0 && item.status < 4),
-        ),
-      },
-      {
-        key: "books",
-        label: "On the Books",
-        color: "mint",
-        items: sort(
-          weddings.filter(
-            (item) =>
-              item.status === 4 &&
-              new Date(`${item.weddingDate}T12:00:00`) >= today,
-          ),
-        ),
-      },
-      {
-        key: "history",
-        label: "History",
-        color: "lilac",
-        items: sort(
-          weddings.filter(
-            (item) =>
-              item.status === 0 ||
-              new Date(`${item.weddingDate}T12:00:00`) < today,
-          ),
-        ),
-      },
-    ];
+    const columns = [[1, "Inquired", "coral"], [2, "Invoice sent", "peach"], [3, "Awaiting deposit", "butter"], [4, "Deposit received", "mint"], [5, "Paid in full", "lilac"]];
+    return columns.map(([status, label, color]) => ({
+      key: label,
+      status,
+      label,
+      color,
+      items: weddings.filter((item) => item.status === status).sort((a, b) => a.weddingDate.localeCompare(b.weddingDate)),
+    }));
   }, [weddings]);
   return (
     <div className="app-shell">
@@ -231,14 +201,7 @@ export function App() {
             <div className="loading-state">Loading…</div>
           ) : (
             <div className="board">
-              {groups.map((group) => (
-                <WeddingSection
-                  key={group.key}
-                  group={group}
-                  onSelect={openWedding}
-                  onStatus={updateStatus}
-                />
-              ))}
+              <KanbanBoard groups={groups} onSelect={openWedding} onStatus={updateStatus} />
             </div>
           )}
           <div className="client-strip">

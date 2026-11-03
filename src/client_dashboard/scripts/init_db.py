@@ -96,6 +96,47 @@ def _ensure_bridal_trial_status() -> None:
             )
 
 
+def _ensure_wedding_status_values() -> None:
+    if engine.dialect.name != "sqlite":
+        return
+    with engine.begin() as connection:
+        sql = connection.exec_driver_sql(
+            "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'weddings'"
+        ).scalar() or ""
+        if "status IN (0, 1, 2, 3, 4, 5, 6)" in sql and "'complete'" in sql:
+            return
+        connection.exec_driver_sql("PRAGMA foreign_keys=OFF")
+        connection.exec_driver_sql("ALTER TABLE weddings RENAME TO weddings_old")
+        connection.exec_driver_sql("""CREATE TABLE weddings (
+            id INTEGER NOT NULL PRIMARY KEY,
+            client_id INTEGER NOT NULL REFERENCES clients (id),
+            wedding_date DATE NOT NULL,
+            location VARCHAR(255),
+            miles_one_way NUMERIC(8, 2),
+            ready_by TIME,
+            status INTEGER NOT NULL DEFAULT 1,
+            invoice_sent_at DATETIME,
+            bridal_trial_status VARCHAR(20) NOT NULL DEFAULT 'not_interested',
+            assistant BOOLEAN NOT NULL DEFAULT 0,
+            created_at DATETIME NOT NULL,
+            updated_at DATETIME NOT NULL,
+            CONSTRAINT ck_weddings_status_valid CHECK (status IN (0, 1, 2, 3, 4, 5, 6)),
+            CONSTRAINT ck_weddings_miles_nonnegative CHECK (miles_one_way IS NULL OR miles_one_way >= 0),
+            CONSTRAINT ck_weddings_bridal_trial_status_valid CHECK (bridal_trial_status IN ('not_interested', 'interested', 'link_sent', 'booked', 'complete', 'cancelled'))
+        )""")
+        connection.exec_driver_sql("""INSERT INTO weddings
+            (id, client_id, wedding_date, location, miles_one_way, ready_by, status,
+             invoice_sent_at, bridal_trial_status, assistant, created_at, updated_at)
+            SELECT id, client_id, wedding_date, location, miles_one_way, ready_by, status,
+             invoice_sent_at, bridal_trial_status, assistant, created_at, updated_at
+            FROM weddings_old""")
+        connection.exec_driver_sql("DROP TABLE weddings_old")
+        connection.exec_driver_sql("CREATE INDEX IF NOT EXISTS ix_weddings_client_id ON weddings (client_id)")
+        connection.exec_driver_sql("CREATE INDEX IF NOT EXISTS ix_weddings_wedding_date ON weddings (wedding_date)")
+        connection.exec_driver_sql("CREATE INDEX IF NOT EXISTS ix_weddings_status ON weddings (status)")
+        connection.exec_driver_sql("PRAGMA foreign_keys=ON")
+
+
 def _ensure_party_member_roles() -> None:
     if engine.dialect.name != "sqlite":
         return
@@ -210,6 +251,7 @@ def main() -> None:
         _ensure_invoice_versioning()
     if "weddings" in inspect(engine).get_table_names():
         _ensure_bridal_trial_status()
+        _ensure_wedding_status_values()
     if "clients" in inspect(engine).get_table_names():
         _ensure_client_inquiry_fields()
     if "weddings" in inspect(engine).get_table_names():
@@ -219,6 +261,7 @@ def main() -> None:
     models.Base.metadata.create_all(bind=engine)
     _ensure_invoice_versioning()
     _ensure_bridal_trial_status()
+    _ensure_wedding_status_values()
     _ensure_client_inquiry_fields()
     _ensure_party_member_roles()
     _ensure_individual_party_members()

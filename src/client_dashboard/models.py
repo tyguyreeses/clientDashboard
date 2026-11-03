@@ -75,12 +75,12 @@ class Wedding(TimestampMixin, Base):
         Index("ix_weddings_wedding_date", "wedding_date"),
         Index("ix_weddings_status", "status"),
         CheckConstraint(
-            "status IN (0, 1, 2, 3, 4)",
+            "status IN (0, 1, 2, 3, 4, 5, 6)",
             name="ck_weddings_status_valid",
         ),
         CheckConstraint("miles_one_way IS NULL OR miles_one_way >= 0", name="ck_weddings_miles_nonnegative"),
         CheckConstraint(
-            "bridal_trial_status IN ('not_interested', 'interested', 'link_sent', 'booked', 'cancelled')",
+            "bridal_trial_status IN ('not_interested', 'interested', 'link_sent', 'booked', 'complete', 'cancelled')",
             name="ck_weddings_bridal_trial_status_valid",
         ),
     )
@@ -90,24 +90,30 @@ class Wedding(TimestampMixin, Base):
     STATUS_RESPONDED = 2
     STATUS_AWAITING_DEPOSIT = 3
     STATUS_DEPOSIT_RECEIVED = 4
+    STATUS_PAID_IN_FULL = 5
+    STATUS_COMPLETED = 6
     STATUS_VALUES = (
         STATUS_CANCELLED,
         STATUS_INQUIRED,
         STATUS_RESPONDED,
         STATUS_AWAITING_DEPOSIT,
         STATUS_DEPOSIT_RECEIVED,
+        STATUS_PAID_IN_FULL,
+        STATUS_COMPLETED,
     )
 
     BRIDAL_TRIAL_NOT_INTERESTED = "not_interested"
     BRIDAL_TRIAL_INTERESTED = "interested"
     BRIDAL_TRIAL_LINK_SENT = "link_sent"
     BRIDAL_TRIAL_BOOKED = "booked"
+    BRIDAL_TRIAL_COMPLETE = "complete"
     BRIDAL_TRIAL_CANCELLED = "cancelled"
     BRIDAL_TRIAL_STATUS_VALUES = (
         BRIDAL_TRIAL_NOT_INTERESTED,
         BRIDAL_TRIAL_INTERESTED,
         BRIDAL_TRIAL_LINK_SENT,
         BRIDAL_TRIAL_BOOKED,
+        BRIDAL_TRIAL_COMPLETE,
         BRIDAL_TRIAL_CANCELLED,
     )
 

@@ -6,6 +6,8 @@ export const STATUS = {
   2: { label: "Invoice sent", tone: "responded" },
   3: { label: "Awaiting deposit", tone: "awaiting" },
   4: { label: "Deposit received", tone: "booked" },
+  5: { label: "Paid in full", tone: "paid" },
+  6: { label: "Completed", tone: "completed" },
 };
 
 export const PARTY_ROLE = {
@@ -27,6 +29,7 @@ export const TRIAL_STATUS = {
   interested: "Interested",
   link_sent: "Link sent",
   booked: "Booked",
+  complete: "Complete",
   cancelled: "Cancelled",
 };
 
