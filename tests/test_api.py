@@ -193,6 +193,56 @@ def test_pricing_versions_and_invoices(client, db_session_factory):
     assert len(invoice_list.json()) == 1
 
 
+def test_invoice_generation_and_regeneration(client):
+    pricing_id = client.post(
+        "/pricing-versions",
+        json={
+            "name": "Invoice pricing",
+            "bride_price": "120",
+            "trial_price": "120",
+            "bridesmaid_price": "90",
+            "flowergirl_price": "45",
+            "early_morning_fee": "40",
+            "assistant_fee": "40",
+            "assistant_bridesmaid_cut": "75",
+            "base_travel_fee": "25",
+            "travel_fee": "0.75",
+            "deposit_percentage": "50",
+            "travel_discount_percentage": "20",
+            "assistant_travel_fee_cut": "15",
+        },
+    ).json()["id"]
+    client_id = client.post("/clients", json={"name": "Invoice Client", "is_referral": True}).json()["id"]
+    wedding_id = client.post(
+        "/weddings",
+        json={
+            "client_id": client_id,
+            "wedding_date": "2026-10-10",
+            "location": "Salt Lake City",
+            "miles_one_way": "10",
+            "ready_by": "09:00:00",
+            "bridal_trial_status": "booked",
+        },
+    ).json()["id"]
+    client.post(f"/weddings/{wedding_id}/party-members", json={"role": "B", "hairstyle": "U"})
+    client.post(f"/weddings/{wedding_id}/party-members", json={"role": "P", "hairstyle": "U", "assistant": True})
+
+    generated = client.post(f"/weddings/{wedding_id}/invoice", json={"pricing_version_id": pricing_id})
+    assert generated.status_code == 201
+    body = generated.json()
+    assert body["invoice"]["grand_total"] == "449.50"
+    assert body["invoice"]["warnings"] == []
+    assert body["invoice"]["timing_details"]["start_time"] == "07:30"
+
+    receipt = client.get(f"/invoices/{body['invoice']['id']}/assistant-receipt")
+    assert receipt.status_code == 200
+    assert receipt.json()["total_paid_to_assistant"] == "107.50"
+
+    unchanged = client.post(f"/weddings/{wedding_id}/invoice", json={"pricing_version_id": pricing_id})
+    assert unchanged.status_code == 200
+    assert unchanged.json()["created"] is False
+
+
 def test_invalid_values_are_rejected(client):
     client_id = client.post("/clients", json={"name": "Invalid Check"}).json()["id"]
     wedding_id = client.post(

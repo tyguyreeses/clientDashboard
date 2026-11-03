@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date, datetime, time
 from decimal import Decimal
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -34,6 +34,7 @@ class ClientBase(BaseModel):
     recommendations_if_unavailable: bool | None = None
     referral_name: str | None = Field(default=None, max_length=255)
     hair_service_details: str | None = None
+    is_referral: bool = False
 
 
 class ClientCreate(ClientBase):
@@ -53,6 +54,7 @@ class ClientUpdate(BaseModel):
     recommendations_if_unavailable: bool | None = None
     referral_name: str | None = Field(default=None, max_length=255)
     hair_service_details: str | None = None
+    is_referral: bool | None = None
     archived: bool | None = None
 
 
@@ -161,6 +163,11 @@ class PricingVersionBase(BaseModel):
     travel_fee: Decimal = Field(ge=0, max_digits=10, decimal_places=2)
     deposit_percentage: Decimal = Field(ge=0, le=100, max_digits=5, decimal_places=2)
     travel_discount_percentage: Decimal = Field(ge=0, le=100, max_digits=5, decimal_places=2)
+    bride_duration_minutes: int = Field(default=75, ge=0)
+    bridesmaid_updo_duration_minutes: int = Field(default=30, ge=0)
+    bridesmaid_down_duration_minutes: int = Field(default=45, ge=0)
+    flowergirl_duration_minutes: int = Field(default=30, ge=0)
+    assistant_travel_fee_cut: Decimal = Field(default=Decimal("15.00"), ge=0, max_digits=10, decimal_places=2)
 
 
 class PricingVersionCreate(PricingVersionBase):
@@ -180,6 +187,11 @@ class PricingVersionUpdate(BaseModel):
     travel_fee: Decimal | None = Field(default=None, ge=0, max_digits=10, decimal_places=2)
     deposit_percentage: Decimal | None = Field(default=None, ge=0, le=100, max_digits=5, decimal_places=2)
     travel_discount_percentage: Decimal | None = Field(default=None, ge=0, le=100, max_digits=5, decimal_places=2)
+    bride_duration_minutes: int | None = Field(default=None, ge=0)
+    bridesmaid_updo_duration_minutes: int | None = Field(default=None, ge=0)
+    bridesmaid_down_duration_minutes: int | None = Field(default=None, ge=0)
+    flowergirl_duration_minutes: int | None = Field(default=None, ge=0)
+    assistant_travel_fee_cut: Decimal | None = Field(default=None, ge=0, max_digits=10, decimal_places=2)
 
 
 class PricingVersionRead(PricingVersionBase, TimestampRead):
@@ -196,6 +208,11 @@ class InvoiceBase(ORMModel):
     deposit_amount: Decimal
     balance_due: Decimal
     grand_total: Decimal
+    calculation_hash: str
+    calculation_snapshot: dict[str, Any]
+    line_items: list[dict[str, Any]]
+    timing_details: dict[str, Any]
+    warnings: list[str]
 
 
 class InvoiceRead(InvoiceBase, TimestampRead):
@@ -205,6 +222,28 @@ class InvoiceRead(InvoiceBase, TimestampRead):
 
 class InvoiceListItem(InvoiceBase, TimestampRead):
     id: int
+
+
+class AssistantReceiptRead(ORMModel):
+    id: int
+    invoice_id: int
+    assistant_travel: Decimal
+    assistant_service_pay: Decimal
+    assisted_bridesmaid_count: int
+    assisted_bridesmaid_pay: Decimal
+    total_paid_to_assistant: Decimal
+    business_takehome: Decimal
+    created_at: datetime
+    updated_at: datetime
+
+
+class InvoiceGenerationRequest(BaseModel):
+    pricing_version_id: int | None = None
+
+
+class InvoiceGenerationResponse(BaseModel):
+    created: bool
+    invoice: InvoiceRead
 
 
 class PaymentBase(BaseModel):

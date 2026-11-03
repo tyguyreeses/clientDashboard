@@ -2,16 +2,19 @@ from __future__ import annotations
 
 from datetime import date, datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import Select, desc, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from .deps import get_db
 from .schemas import (
+    AssistantReceiptRead,
     ClientCreate,
     ClientRead,
     ClientUpdate,
+    InvoiceGenerationRequest,
+    InvoiceGenerationResponse,
     InvoiceListItem,
     InvoiceRead,
     PaymentCreate,
@@ -30,6 +33,7 @@ from .schemas import (
     WeddingUpdate,
 )
 from ..models import (
+    AssistantReceipt,
     Client,
     Invoice,
     Payment,
@@ -235,7 +239,10 @@ def create_party_member(
     data = payload.model_dump(exclude={"by_me_quantity", "by_assistant_quantity"})
     if payload.by_assistant_quantity is not None or payload.by_me_quantity is not None:
         data["assistant"] = bool(payload.by_assistant_quantity)
+    wedding = _get_or_404(session, Wedding, wedding_id, "Wedding not found")
     member = WeddingPartyMember(wedding_id=wedding_id, **data)
+    if member.assistant:
+        wedding.assistant = True
     session.add(member)
     _commit(session)
     session.refresh(member)
@@ -274,6 +281,8 @@ def update_party_member(
         updates["assistant"] = bool(payload.by_assistant_quantity)
     for field, value in updates.items():
         setattr(member, field, value)
+    if member.assistant:
+        member.wedding.assistant = True
     _commit(session)
     session.refresh(member)
     return member
@@ -364,6 +373,82 @@ def get_invoice(invoice_id: int, session: Session = Depends(get_db)) -> Invoice:
     return invoice
 
 
+@router.post("/weddings/{wedding_id}/invoice", response_model=InvoiceGenerationResponse)
+def generate_wedding_invoice(
+    wedding_id: int,
+    payload: InvoiceGenerationRequest,
+    response: Response,
+    session: Session = Depends(get_db),
+) -> InvoiceGenerationResponse:
+    wedding = _get_wedding_detail(session, wedding_id)
+    if not wedding.location or not wedding.location.strip():
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Missing required fields: location")
+    if wedding.ready_by is None:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Missing required fields: ready_by")
+    if wedding.miles_one_way is None:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Missing required fields: miles_one_way")
+
+    if payload.pricing_version_id is None:
+        pricing = session.scalars(select(PricingVersion).order_by(desc(PricingVersion.id)).limit(1)).first()
+    else:
+        pricing = session.get(PricingVersion, payload.pricing_version_id)
+    if pricing is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pricing version not found")
+
+    from ..invoice import calculate_invoice
+
+    try:
+        calculation = calculate_invoice(wedding, wedding.client, pricing, wedding.party_members)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+
+    latest = session.scalars(
+        select(Invoice)
+        .where(Invoice.wedding_id == wedding_id)
+        .order_by(desc(Invoice.version_number), desc(Invoice.id))
+        .limit(1)
+    ).first()
+    if latest is not None and latest.calculation_hash == calculation.calculation_hash:
+        return InvoiceGenerationResponse(created=False, invoice=latest)
+
+    version_number = (latest.version_number + 1) if latest else 1
+    invoice = Invoice(
+        wedding_id=wedding.id,
+        version_number=version_number,
+        pricing_version_id=pricing.id,
+        services_total=calculation.services_total,
+        travel_total=calculation.travel_total,
+        discount_total=calculation.discount_total,
+        deposit_amount=calculation.deposit_amount,
+        balance_due=calculation.balance_due,
+        grand_total=calculation.grand_total,
+        calculation_hash=calculation.calculation_hash,
+        calculation_snapshot=calculation.calculation_snapshot,
+        line_items=calculation.line_items,
+        timing_details=calculation.timing_details,
+        warnings=calculation.warnings,
+    )
+    session.add(invoice)
+    session.flush()
+    if calculation.assistant_receipt is not None:
+        receipt = calculation.assistant_receipt
+        session.add(
+            AssistantReceipt(
+                invoice_id=invoice.id,
+                assistant_travel=receipt["assistant_travel"],
+                assistant_service_pay=receipt["assistant_service_pay"],
+                assisted_bridesmaid_count=receipt["assisted_bridesmaid_count"],
+                assisted_bridesmaid_pay=receipt["assisted_bridesmaid_pay"],
+                total_paid_to_assistant=receipt["total_paid_to_assistant"],
+                business_takehome=receipt["business_takehome"],
+            )
+        )
+    _commit(session)
+    session.refresh(invoice)
+    response.status_code = status.HTTP_201_CREATED
+    return InvoiceGenerationResponse(created=True, invoice=invoice)
+
+
 @router.get("/weddings/{wedding_id}/invoice", response_model=InvoiceRead)
 def get_wedding_invoice(wedding_id: int, session: Session = Depends(get_db)) -> Invoice:
     _get_or_404(session, Wedding, wedding_id, "Wedding not found")
@@ -378,6 +463,15 @@ def get_wedding_invoice(wedding_id: int, session: Session = Depends(get_db)) -> 
     if invoice is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found")
     return invoice
+
+
+@router.get("/invoices/{invoice_id}/assistant-receipt", response_model=AssistantReceiptRead)
+def get_assistant_receipt(invoice_id: int, session: Session = Depends(get_db)) -> AssistantReceipt:
+    _get_or_404(session, Invoice, invoice_id, "Invoice not found")
+    receipt = session.scalar(select(AssistantReceipt).where(AssistantReceipt.invoice_id == invoice_id))
+    if receipt is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Assistant receipt not found")
+    return receipt
 
 
 @router.post("/payments", response_model=PaymentRead, status_code=status.HTTP_201_CREATED)

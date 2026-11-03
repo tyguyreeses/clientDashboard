@@ -1,0 +1,262 @@
+from __future__ import annotations
+
+import hashlib
+import json
+from dataclasses import dataclass
+from datetime import datetime, time, timedelta
+from decimal import Decimal, ROUND_HALF_UP
+from typing import Any
+
+from .models import Client, PricingVersion, Wedding, WeddingPartyMember
+
+MONEY = Decimal("0.01")
+ZERO = Decimal("0.00")
+
+
+def money(value: Decimal | int | str) -> Decimal:
+    return Decimal(value).quantize(MONEY, rounding=ROUND_HALF_UP)
+
+
+def decimal_string(value: Decimal | int | str) -> str:
+    return format(money(value), ".2f")
+
+
+def _time_string(value: time | None) -> str | None:
+    return value.strftime("%H:%M") if value else None
+
+
+def _service_minutes(member: WeddingPartyMember, pricing: PricingVersion) -> int:
+    if member.role == WeddingPartyMember.ROLE_BRIDE:
+        return int(pricing.bride_duration_minutes)
+    if member.role == WeddingPartyMember.ROLE_FLOWERGIRL:
+        return int(pricing.flowergirl_duration_minutes)
+    if member.role in (
+        WeddingPartyMember.ROLE_BRIDAL_PARTY,
+        WeddingPartyMember.ROLE_JUNIOR_BRIDESMAID,
+        WeddingPartyMember.ROLE_MOB,
+        WeddingPartyMember.ROLE_OTHER,
+    ):
+        return int(
+            pricing.bridesmaid_updo_duration_minutes
+            if member.hairstyle == WeddingPartyMember.HAIRSTYLE_UPDO
+            else pricing.bridesmaid_down_duration_minutes
+        )
+    return 0
+
+
+def _line(description: str, quantity: int, unit_price: Decimal, total: Decimal) -> dict[str, Any]:
+    return {
+        "description": description,
+        "quantity": quantity,
+        "unit_price": decimal_string(unit_price),
+        "total": decimal_string(total),
+    }
+
+
+@dataclass(frozen=True)
+class InvoiceCalculation:
+    services_total: Decimal
+    travel_total: Decimal
+    discount_total: Decimal
+    deposit_amount: Decimal
+    balance_due: Decimal
+    grand_total: Decimal
+    line_items: list[dict[str, Any]]
+    timing_details: dict[str, Any]
+    warnings: list[str]
+    calculation_snapshot: dict[str, Any]
+    calculation_hash: str
+    assistant_receipt: dict[str, Any] | None
+
+
+def calculate_invoice(
+    wedding: Wedding,
+    client: Client,
+    pricing: PricingVersion,
+    members: list[WeddingPartyMember],
+) -> InvoiceCalculation:
+    warnings: list[str] = []
+    roles = {member.role for member in members}
+    if WeddingPartyMember.ROLE_BRIDE not in roles:
+        warnings.append("No bride party member was included.")
+    if not members:
+        warnings.append("No wedding party members were included.")
+
+    bride_count = sum(member.role == WeddingPartyMember.ROLE_BRIDE for member in members)
+    party_count = sum(
+        member.role
+        in (
+            WeddingPartyMember.ROLE_BRIDAL_PARTY,
+            WeddingPartyMember.ROLE_JUNIOR_BRIDESMAID,
+            WeddingPartyMember.ROLE_MOB,
+            WeddingPartyMember.ROLE_OTHER,
+        )
+        for member in members
+    )
+    flowergirl_count = sum(member.role == WeddingPartyMember.ROLE_FLOWERGIRL for member in members)
+    assisted_party_count = sum(
+        member.assistant
+        and member.role
+        in (
+            WeddingPartyMember.ROLE_BRIDAL_PARTY,
+            WeddingPartyMember.ROLE_JUNIOR_BRIDESMAID,
+            WeddingPartyMember.ROLE_MOB,
+            WeddingPartyMember.ROLE_OTHER,
+        )
+        for member in members
+    )
+    effective_assistant = wedding.assistant or any(member.assistant for member in members)
+
+    bride_total = money(pricing.bride_price * bride_count)
+    party_total = money(pricing.bridesmaid_price * party_count)
+    flowergirl_total = money(pricing.flowergirl_price * flowergirl_count)
+    trial_total = ZERO
+    if wedding.bridal_trial_status not in (
+        Wedding.BRIDAL_TRIAL_NOT_INTERESTED,
+        Wedding.BRIDAL_TRIAL_CANCELLED,
+    ):
+        trial_total = money(pricing.trial_price)
+
+    line_items: list[dict[str, Any]] = []
+    if bride_count:
+        line_items.append(_line("Bride", bride_count, pricing.bride_price, bride_total))
+    if party_count:
+        line_items.append(_line("Bridal party", party_count, pricing.bridesmaid_price, party_total))
+    if flowergirl_count:
+        line_items.append(_line("Flower girl", flowergirl_count, pricing.flowergirl_price, flowergirl_total))
+    if trial_total:
+        line_items.append(_line("Bridal trial", 1, pricing.trial_price, trial_total))
+
+    services_total = money(bride_total + party_total + flowergirl_total + trial_total)
+
+    travel_total = ZERO
+    assistant_travel = ZERO
+    discount_total = ZERO
+    if wedding.miles_one_way is None:
+        raise ValueError("Missing required fields: miles_one_way")
+    miles = money(wedding.miles_one_way)
+    if miles > ZERO:
+        regular_travel = money(pricing.base_travel_fee + miles * pricing.travel_fee * 2)
+        if client.is_referral:
+            discount_total = money(regular_travel * pricing.travel_discount_percentage / Decimal("100"))
+        travel_total = regular_travel
+        line_items.append(_line("Travel", 1, regular_travel, regular_travel))
+        if effective_assistant:
+            assistant_travel = money(miles * pricing.travel_fee)
+            travel_total = money(travel_total + assistant_travel)
+            line_items.append(_line("Assistant travel fee", 1, assistant_travel, assistant_travel))
+
+    additional_fees = ZERO
+    if effective_assistant:
+        additional_fees = money(additional_fees + pricing.assistant_fee)
+        line_items.append(_line("Assistant fee", 1, pricing.assistant_fee, pricing.assistant_fee))
+
+    # The primary stylist and assistant work concurrently. The 15-minute buffer
+    # is added after selecting the longer workload.
+    primary_minutes = sum(_service_minutes(member, pricing) for member in members if not member.assistant)
+    assistant_minutes = sum(_service_minutes(member, pricing) for member in members if member.assistant)
+    service_minutes = max(primary_minutes, assistant_minutes) + 15
+    start_time: time | None = None
+    if wedding.ready_by is None:
+        raise ValueError("Missing required fields: ready_by")
+    ready_datetime = datetime.combine(wedding.wedding_date, wedding.ready_by)
+    start_datetime = ready_datetime - timedelta(minutes=service_minutes)
+    start_time = start_datetime.time()
+    if start_time < time(8, 0):
+        additional_fees = money(additional_fees + pricing.early_morning_fee)
+        line_items.append(_line("Early morning fee", 1, pricing.early_morning_fee, pricing.early_morning_fee))
+
+    referral_text = "Referral travel discount" if discount_total else None
+    if discount_total:
+        line_items.append(_line(referral_text, 1, -discount_total, -discount_total))
+
+    grand_total = money(services_total + travel_total + additional_fees - discount_total)
+    deposit_amount = money(grand_total * pricing.deposit_percentage / Decimal("100"))
+    balance_due = money(grand_total - deposit_amount)
+
+    timing_details = {
+        "ready_by": _time_string(wedding.ready_by),
+        "start_time": _time_string(start_time),
+        "service_minutes": service_minutes,
+        "primary_stylist_minutes": primary_minutes,
+        "assistant_minutes": assistant_minutes,
+        "service_durations": {
+            "bride": pricing.bride_duration_minutes,
+            "bridal_party_updo": pricing.bridesmaid_updo_duration_minutes,
+            "bridal_party_down": pricing.bridesmaid_down_duration_minutes,
+            "flowergirl": pricing.flowergirl_duration_minutes,
+        },
+    }
+    snapshot = {
+        "pricing_version_id": pricing.id,
+        "pricing": {
+            "bride_price": decimal_string(pricing.bride_price),
+            "trial_price": decimal_string(pricing.trial_price),
+            "bridesmaid_price": decimal_string(pricing.bridesmaid_price),
+            "flowergirl_price": decimal_string(pricing.flowergirl_price),
+            "early_morning_fee": decimal_string(pricing.early_morning_fee),
+            "assistant_fee": decimal_string(pricing.assistant_fee),
+            "assistant_bridesmaid_cut": decimal_string(pricing.assistant_bridesmaid_cut),
+            "base_travel_fee": decimal_string(pricing.base_travel_fee),
+            "travel_fee": decimal_string(pricing.travel_fee),
+            "deposit_percentage": decimal_string(pricing.deposit_percentage),
+            "travel_discount_percentage": decimal_string(pricing.travel_discount_percentage),
+            "assistant_travel_fee_cut": decimal_string(pricing.assistant_travel_fee_cut),
+        },
+        "wedding": {
+            "id": wedding.id,
+            "wedding_date": wedding.wedding_date.isoformat(),
+            "location": wedding.location,
+            "miles_one_way": decimal_string(wedding.miles_one_way),
+            "ready_by": _time_string(wedding.ready_by),
+            "assistant": wedding.assistant,
+            "bridal_trial_status": wedding.bridal_trial_status,
+        },
+        "client": {"id": client.id, "is_referral": client.is_referral},
+        "party_members": [
+            {"id": member.id, "role": member.role, "hairstyle": member.hairstyle, "assistant": member.assistant}
+            for member in members
+        ],
+        "line_items": line_items,
+        "timing_details": timing_details,
+        "totals": {
+            "services_total": decimal_string(services_total),
+            "travel_total": decimal_string(travel_total),
+            "discount_total": decimal_string(discount_total),
+            "deposit_amount": decimal_string(deposit_amount),
+            "balance_due": decimal_string(balance_due),
+            "grand_total": decimal_string(grand_total),
+        },
+        "warnings": warnings,
+    }
+    encoded = json.dumps(snapshot, sort_keys=True, separators=(",", ":")).encode()
+    calculation_hash = hashlib.sha256(encoded).hexdigest()
+
+    receipt = None
+    if effective_assistant:
+        assistant_service_pay = money(pricing.assistant_fee - pricing.assistant_travel_fee_cut)
+        assistant_party_pay = money(pricing.assistant_bridesmaid_cut * assisted_party_count)
+        assistant_total = money(assistant_service_pay + assistant_party_pay + assistant_travel)
+        receipt = {
+            "assistant_travel": decimal_string(assistant_travel),
+            "assistant_service_pay": decimal_string(assistant_service_pay),
+            "assisted_bridesmaid_count": assisted_party_count,
+            "assisted_bridesmaid_pay": decimal_string(assistant_party_pay),
+            "total_paid_to_assistant": decimal_string(assistant_total),
+            "business_takehome": decimal_string(grand_total - assistant_total),
+        }
+
+    return InvoiceCalculation(
+        services_total=services_total,
+        travel_total=travel_total,
+        discount_total=discount_total,
+        deposit_amount=deposit_amount,
+        balance_due=balance_due,
+        grand_total=grand_total,
+        line_items=line_items,
+        timing_details=timing_details,
+        warnings=warnings,
+        calculation_snapshot=snapshot,
+        calculation_hash=calculation_hash,
+        assistant_receipt=receipt,
+    )

@@ -15,6 +15,7 @@ EXPECTED_TABLES = (
     "wedding_party_members",
     "pricing_versions",
     "invoices",
+    "assistant_receipts",
     "payments",
 )
 INVOICE_VERSION_INDEX = "uq_invoices_wedding_id_version_number"
@@ -28,7 +29,23 @@ CLIENT_INQUIRY_COLUMNS = {
     "referral_name": "VARCHAR(255)",
     "hair_service_details": "TEXT",
     "archived": "BOOLEAN NOT NULL DEFAULT 0",
+    "is_referral": "BOOLEAN NOT NULL DEFAULT 0",
 }
+PRICING_COLUMNS = {
+    "bride_duration_minutes": "INTEGER NOT NULL DEFAULT 75",
+    "bridesmaid_updo_duration_minutes": "INTEGER NOT NULL DEFAULT 30",
+    "bridesmaid_down_duration_minutes": "INTEGER NOT NULL DEFAULT 45",
+    "flowergirl_duration_minutes": "INTEGER NOT NULL DEFAULT 30",
+    "assistant_travel_fee_cut": "NUMERIC(10, 2) NOT NULL DEFAULT 15.00",
+}
+INVOICE_COLUMNS = {
+    "calculation_hash": "VARCHAR(64) NOT NULL DEFAULT ''",
+    "calculation_snapshot": "JSON NOT NULL DEFAULT '{}'",
+    "line_items": "JSON NOT NULL DEFAULT '[]'",
+    "timing_details": "JSON NOT NULL DEFAULT '{}'",
+    "warnings": "JSON NOT NULL DEFAULT '[]'",
+}
+
 
 
 def _expected_columns() -> dict[str, set[str]]:
@@ -244,6 +261,40 @@ def _ensure_client_inquiry_fields() -> None:
                 connection.exec_driver_sql(f"ALTER TABLE clients ADD COLUMN {name} {definition}")
 
 
+def _ensure_pricing_fields() -> None:
+    with engine.begin() as connection:
+        columns = {column["name"] for column in inspect(connection).get_columns("pricing_versions")}
+        for name, definition in PRICING_COLUMNS.items():
+            if name not in columns:
+                connection.exec_driver_sql(f"ALTER TABLE pricing_versions ADD COLUMN {name} {definition}")
+
+
+def _ensure_invoice_fields() -> None:
+    with engine.begin() as connection:
+        columns = {column["name"] for column in inspect(connection).get_columns("invoices")}
+        for name, definition in INVOICE_COLUMNS.items():
+            if name not in columns:
+                connection.exec_driver_sql(f"ALTER TABLE invoices ADD COLUMN {name} {definition}")
+
+
+def _seed_default_pricing() -> None:
+    with engine.begin() as connection:
+        exists = connection.exec_driver_sql("SELECT 1 FROM pricing_versions LIMIT 1").first()
+        if exists:
+            return
+        connection.exec_driver_sql(
+            """INSERT INTO pricing_versions
+            (name, bride_price, trial_price, bridesmaid_price, flowergirl_price,
+             early_morning_fee, assistant_fee, assistant_bridesmaid_cut,
+             base_travel_fee, travel_fee, deposit_percentage, travel_discount_percentage,
+             bride_duration_minutes, bridesmaid_updo_duration_minutes,
+             bridesmaid_down_duration_minutes, flowergirl_duration_minutes,
+             assistant_travel_fee_cut, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)""",
+            ("Default pricing", 120, 120, 90, 45, 40, 40, 75, 25, 0.75, 50, 20, 75, 30, 45, 30, 15),
+        )
+
+
 def main() -> None:
     # Migrate the legacy invoice table before create_all attempts to create
     # the current unique index, which depends on version_number.
@@ -254,6 +305,10 @@ def main() -> None:
         _ensure_wedding_status_values()
     if "clients" in inspect(engine).get_table_names():
         _ensure_client_inquiry_fields()
+    if "pricing_versions" in inspect(engine).get_table_names():
+        _ensure_pricing_fields()
+    if "invoices" in inspect(engine).get_table_names():
+        _ensure_invoice_fields()
     if "weddings" in inspect(engine).get_table_names():
         _ensure_party_member_roles()
         _ensure_hair_service_count()
@@ -263,10 +318,13 @@ def main() -> None:
     _ensure_bridal_trial_status()
     _ensure_wedding_status_values()
     _ensure_client_inquiry_fields()
+    _ensure_pricing_fields()
+    _ensure_invoice_fields()
     _ensure_party_member_roles()
     _ensure_individual_party_members()
     _ensure_hair_service_count()
     _ensure_invoice_sent_at()
+    _seed_default_pricing()
 
     with engine.connect() as connection:
         connection.execute(select(1))

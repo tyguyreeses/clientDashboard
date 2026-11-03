@@ -11,6 +11,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    JSON,
     Numeric,
     SmallInteger,
     String,
@@ -60,6 +61,7 @@ class Client(TimestampMixin, Base):
     recommendations_if_unavailable: Mapped[bool | None] = mapped_column(Boolean)
     referral_name: Mapped[str | None] = mapped_column(String(255))
     hair_service_details: Mapped[str | None] = mapped_column(Text)
+    is_referral: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     archived: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     weddings: Mapped[list[Wedding]] = relationship(
@@ -209,6 +211,11 @@ class PricingVersion(TimestampMixin, Base):
         CheckConstraint("travel_fee >= 0", name="ck_pricing_travel_nonnegative"),
         CheckConstraint("deposit_percentage BETWEEN 0 AND 100", name="ck_pricing_deposit_percent"),
         CheckConstraint("travel_discount_percentage BETWEEN 0 AND 100", name="ck_pricing_travel_discount_percent"),
+        CheckConstraint("bride_duration_minutes >= 0", name="ck_pricing_bride_duration_nonnegative"),
+        CheckConstraint("bridesmaid_updo_duration_minutes >= 0", name="ck_pricing_bridesmaid_updo_duration_nonnegative"),
+        CheckConstraint("bridesmaid_down_duration_minutes >= 0", name="ck_pricing_bridesmaid_down_duration_nonnegative"),
+        CheckConstraint("flowergirl_duration_minutes >= 0", name="ck_pricing_flowergirl_duration_nonnegative"),
+        CheckConstraint("assistant_travel_fee_cut >= 0", name="ck_pricing_assistant_travel_cut_nonnegative"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -224,6 +231,11 @@ class PricingVersion(TimestampMixin, Base):
     travel_fee: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     deposit_percentage: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False)
     travel_discount_percentage: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False)
+    bride_duration_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=75)
+    bridesmaid_updo_duration_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=30)
+    bridesmaid_down_duration_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=45)
+    flowergirl_duration_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=30)
+    assistant_travel_fee_cut: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False, default=Decimal("15.00"))
 
     invoices: Mapped[list[Invoice]] = relationship(back_populates="pricing_version")
 
@@ -263,9 +275,33 @@ class Invoice(TimestampMixin, Base):
     deposit_amount: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False, default=Decimal("0.00"))
     balance_due: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False, default=Decimal("0.00"))
     grand_total: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False, default=Decimal("0.00"))
+    calculation_hash: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    calculation_snapshot: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    line_items: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    timing_details: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    warnings: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
 
     wedding: Mapped[Wedding] = relationship(back_populates="invoices")
     pricing_version: Mapped[PricingVersion] = relationship(back_populates="invoices")
+    assistant_receipt: Mapped[AssistantReceipt | None] = relationship(
+        back_populates="invoice", uselist=False, cascade="all, delete-orphan"
+    )
+
+
+class AssistantReceipt(TimestampMixin, Base):
+    __tablename__ = "assistant_receipts"
+    __table_args__ = (Index("ix_assistant_receipts_invoice_id", "invoice_id", unique=True),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    invoice_id: Mapped[int] = mapped_column(ForeignKey("invoices.id"), nullable=False)
+    assistant_travel: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
+    assistant_service_pay: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
+    assisted_bridesmaid_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    assisted_bridesmaid_pay: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
+    total_paid_to_assistant: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
+    business_takehome: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
+
+    invoice: Mapped[Invoice] = relationship(back_populates="assistant_receipt")
 
 
 class Payment(TimestampMixin, Base):
