@@ -77,6 +77,24 @@ export const initials = (name = "") =>
 
 export const timeLabel = (value) => (value ? value.slice(0, 5) : "Time TBD");
 
+export const timeSince = (value) => {
+  if (!value) return "Inquiry date unknown";
+  const inquiry = new Date(`${value}T00:00:00`);
+  const today = new Date();
+  inquiry.setHours(0, 0, 0, 0);
+  today.setHours(0, 0, 0, 0);
+  const days = Math.max(0, Math.floor((today - inquiry) / 86400000));
+  if (days === 0) return "Today";
+  if (days === 1) return "1 day ago";
+  if (days < 7) return `${days} days ago`;
+  const weeks = Math.floor(days / 7);
+  if (weeks === 1) return "1 week ago";
+  if (weeks < 5) return `${weeks} weeks ago`;
+  const months = Math.floor(days / 30);
+  if (months === 1) return "1 month ago";
+  return `${months} months ago`;
+};
+
 export function weddingView(wedding) {
   const client = wedding.client || {};
   return {

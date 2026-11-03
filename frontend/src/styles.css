@@ -110,7 +110,7 @@ nav a.active::after {
 }
 nav small {
   color: var(--coral);
-  font-size: 9px;
+  font-size: 10px;
   margin-left: 3px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -372,7 +372,9 @@ nav small {
 .kanban-card { display: grid; gap: 5px; padding: 13px; border: 1px solid var(--line); border-radius: 11px; background: var(--paper); box-shadow: 0 5px 12px rgba(80, 50, 40, 0.06); cursor: grab; font-size: 11px; transition: background 0.22s, transform 0.3s cubic-bezier(0.2, 1.4, 0.4, 1); }
 .kanban-card:hover { background: #fff8f2; border-color: var(--coral); transform: translateX(4px); }
 .kanban-card:active { cursor: grabbing; }
+.kanban-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
 .kanban-card strong { font-size: 13px; }
+.kanban-card small { color: var(--muted); font-size: 10px; white-space: nowrap; }
 .kanban-card span { color: var(--muted); }
 .kanban-empty { padding: 24px 10px; color: var(--muted); text-align: center; font-size: 11px; }
 .drag-actions { position: fixed; z-index: 40; bottom: 18px; left: 50%; width: min(760px, calc(100% - 36px)); transform: translateX(-50%); display: grid; grid-template-columns: 1fr 1fr; gap: 12px; animation: fade-in 0.2s ease; }
@@ -382,7 +384,7 @@ nav small {
 .drag-cancel.drag-target { color: #fff; background: #d95757; border-color: #d95757; }
 .drag-complete.drag-target { color: #fff; background: #4d9a6d; border-color: #4d9a6d; }
 .trial-kanban { grid-column: 1 / -1; margin: 6px 0 18px; }
-.trial-kanban-label { display: block; margin-bottom: 7px; color: var(--muted); text-transform: uppercase; font-size: 9px; letter-spacing: 0.1em; }
+.trial-kanban-label { display: block; margin-bottom: 5px; color: var(--muted); text-transform: uppercase; font-size: 10px; letter-spacing: 0.1em; }
 .trial-kanban-columns { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; }
 .trial-step { min-height: 45px; display: flex; align-items: center; justify-content: center; padding: 7px; border: 1px solid var(--line); border-radius: 9px; color: var(--muted); background: #fffdf9; font: inherit; font-size: 10px; cursor: pointer; transition: background 0.22s, border-color 0.22s, transform 0.3s cubic-bezier(0.2, 1.4, 0.4, 1); }
 .trial-step:hover { background: #fff8f2; border-color: var(--coral); transform: translateY(-2px); }
@@ -472,7 +474,7 @@ nav small {
 }
 .balance-cell small {
   color: var(--muted);
-  font-size: 9px;
+  font-size: 10px;
   display: block;
   text-transform: uppercase;
   letter-spacing: 0.1em;
@@ -807,7 +809,7 @@ nav small {
 .notes-label {
   color: var(--muted);
   text-transform: uppercase;
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: 0.1em;
 }
 .editable-field > div {
@@ -1069,9 +1071,9 @@ nav small {
   display: block;
   color: var(--muted);
   text-transform: uppercase;
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: 0.1em;
-  margin-bottom: 7px;
+  margin-bottom: 5px;
 }
 .detail strong {
   display: block;

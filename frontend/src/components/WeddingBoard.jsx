@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { formatDate, STATUS, timeLabel } from "../utils";
+import { formatDate, STATUS, timeLabel, timeSince } from "../utils";
 
 export function Stat({ label, value, accent }) {
   return <div className={`stat-card ${accent}`}><span>{label}</span><strong>{value}</strong><b>↗</b></div>;
@@ -14,7 +14,7 @@ function WeddingCard({ wedding, onSelect, onDragStart, onDragEnd }) {
       onDragEnd={onDragEnd}
       onClick={() => onSelect(wedding)}
     >
-      <strong>{wedding.name}</strong>
+      <div className="kanban-card-top"><strong>{wedding.name}</strong><small>{timeSince(wedding.inquiryDate)}</small></div>
       <span>{formatDate(wedding.weddingDate)}</span>
       <span>{wedding.people || 0} people · {wedding.location}</span>
     </article>
