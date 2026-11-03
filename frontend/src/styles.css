@@ -653,14 +653,58 @@ nav small {
   color: #97756d;
   font-size: 12px;
 }
-.profile-save {
+.profile-actions {
   margin-left: auto;
   align-self: flex-start;
+  display: flex;
+  gap: 8px;
+}
+.profile-save,
+.profile-cancel {
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  margin-left: 0;
   color: #a66e65;
   font-size: 10px;
   background: rgba(255, 255, 255, 0.45);
   padding: 7px 10px;
   border-radius: 20px;
+}
+.profile-cancel {
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.45);
+  padding: 7px 10px;
+}
+.profile-name-input {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--ink);
+  font: 700 36px Fraunces, serif;
+  letter-spacing: -0.04em;
+}
+.profile-contact-edit {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 7px;
+}
+.profile-contact-edit input,
+.profile-inquiry-date {
+  border: 0;
+  border-bottom: 1px solid #d7b7af;
+  outline: 0;
+  background: transparent;
+  color: #97756d;
+  font: inherit;
+}
+.profile-contact-edit input { width: 130px; }
+.profile-inquiry-date {
+  margin-top: 7px;
+  font-size: 12px;
 }
 .profile-page .profile-section {
   background: rgba(255, 253, 249, 0.75);

@@ -69,6 +69,12 @@ export function weddingView(wedding) {
     email: client.email || "",
     phone: client.phone || "",
     source: client.source || "Unknown source",
+    socialMedia: client.social_media || "",
+    inquiryDate: client.inquiry_date,
+    planningStage: client.planning_stage || "",
+    makeupInterest: client.makeup_interest,
+    recommendationsIfUnavailable: client.recommendations_if_unavailable,
+    referralName: client.referral_name || "",
     notes: client.notes || "",
     initials: initials(client.name),
     weddingDate: wedding.wedding_date,
@@ -76,6 +82,7 @@ export function weddingView(wedding) {
     readyBy: timeLabel(wedding.ready_by),
     location: wedding.location || "Location TBD",
     miles: wedding.miles_one_way,
+    hairServiceCount: wedding.hair_service_count,
     people: (wedding.party_members || []).reduce(
       (sum, member) =>
         sum + member.by_me_quantity + member.by_assistant_quantity,

@@ -24,7 +24,6 @@ export function ClientDetails({ client, weddings, onSaved, onArchived }) {
           makeup_interest: draft.makeup_interest,
           recommendations_if_unavailable: draft.recommendations_if_unavailable,
           referral_name: draft.referral_name,
-          hair_service_details: draft.hair_service_details,
         }),
       });
       setDraft(saved);
@@ -100,11 +99,6 @@ export function ClientDetails({ client, weddings, onSaved, onArchived }) {
           label="Referral name"
           value={draft.referral_name}
           onChange={(value) => update("referral_name", value)}
-        />
-        <Editable
-          label="Hair service details"
-          value={draft.hair_service_details}
-          onChange={(value) => update("hair_service_details", value)}
         />
       </div>
       <label className="notes-label">

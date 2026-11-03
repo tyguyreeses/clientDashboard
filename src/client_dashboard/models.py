@@ -118,6 +118,7 @@ class Wedding(TimestampMixin, Base):
     )
     wedding_date: Mapped[date] = mapped_column(Date, nullable=False)
     location: Mapped[str | None] = mapped_column(String(255))
+    hair_service_count: Mapped[int | None] = mapped_column(Integer)
     miles_one_way: Mapped[Decimal | None] = mapped_column(Numeric(8, 2))
     ready_by: Mapped[time | None] = mapped_column(Time)
     status: Mapped[int] = mapped_column(Integer, nullable=False, default=STATUS_INQUIRED)

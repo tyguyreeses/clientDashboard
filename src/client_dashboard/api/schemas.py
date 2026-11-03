@@ -69,6 +69,7 @@ class WeddingBase(BaseModel):
     client_id: int
     wedding_date: date
     location: str | None = Field(default=None, max_length=255)
+    hair_service_count: int | None = Field(default=None, ge=0)
     miles_one_way: Decimal | None = Field(default=None, ge=0, max_digits=8, decimal_places=2)
     ready_by: time | None = None
     status: WeddingStatus = 1
@@ -85,6 +86,7 @@ class WeddingUpdate(BaseModel):
     client_id: int | None = None
     wedding_date: date | None = None
     location: str | None = Field(default=None, max_length=255)
+    hair_service_count: int | None = Field(default=None, ge=0)
     miles_one_way: Decimal | None = Field(default=None, ge=0, max_digits=8, decimal_places=2)
     ready_by: time | None = None
     status: WeddingStatus | None = None
@@ -121,6 +123,7 @@ class WeddingRead(TimestampRead):
     client_id: int
     wedding_date: date
     location: str | None
+    hair_service_count: int | None
     miles_one_way: Decimal | None
     ready_by: time | None
     status: WeddingStatus
@@ -136,6 +139,7 @@ class WeddingListItem(TimestampRead):
     client_id: int
     wedding_date: date
     location: str | None
+    hair_service_count: int | None
     miles_one_way: Decimal | None
     ready_by: time | None
     status: WeddingStatus

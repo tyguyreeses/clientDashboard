@@ -122,6 +122,27 @@ export function App() {
             setWeddings((items) =>
               items.map((old) => (old.id === item.id ? item : old)),
             );
+            setClients((items) =>
+              items.map((old) =>
+                old.id === item.clientId
+                  ? {
+                      ...old,
+                      name: item.name,
+                      email: item.email,
+                      phone: item.phone,
+                      inquiry_date: item.inquiryDate,
+                      source: item.source,
+                      social_media: item.socialMedia,
+                      planning_stage: item.planningStage,
+                      makeup_interest: item.makeupInterest,
+                      recommendations_if_unavailable:
+                        item.recommendationsIfUnavailable,
+                      referral_name: item.referralName,
+                      notes: item.notes,
+                    }
+                  : old,
+              ),
+            );
             setSelected(item);
           }}
         />

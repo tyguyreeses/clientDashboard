@@ -44,7 +44,6 @@ export function AddClientModal({ onClose, onCreated }) {
           makeup_interest: form.makeup === "yes",
           recommendations_if_unavailable: form.recommendations === "yes",
           referral_name: form.referral || "N/A",
-          hair_service_details: form.party_details,
         }),
       });
       const wedding = await json("/weddings", {
@@ -54,6 +53,7 @@ export function AddClientModal({ onClose, onCreated }) {
           wedding_date: form.wedding_date,
           location: form.location || null,
           ready_by: form.ready_by || null,
+          hair_service_count: Number(form.party_details),
           status: 1,
           bridal_trial_status:
             form.bridal_trial === "yes" ? "interested" : "not_interested",
