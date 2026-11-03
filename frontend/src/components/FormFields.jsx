@@ -52,6 +52,9 @@ export function Editable({
   onChange,
   type = "text",
   required = false,
+  step,
+  min,
+  max,
 }) {
   return (
     <label className="editable-field">
@@ -59,6 +62,9 @@ export function Editable({
       <div>
         <input
           type={type}
+          step={step}
+          min={min}
+          max={max}
           value={value || ""}
           required={required}
           onChange={(event) => onChange(event.target.value)}
