@@ -96,6 +96,84 @@ def _ensure_bridal_trial_status() -> None:
             )
 
 
+def _ensure_party_member_roles() -> None:
+    if engine.dialect.name != "sqlite":
+        return
+    with engine.begin() as connection:
+        constraints = connection.exec_driver_sql(
+            "SELECT sql FROM sqlite_master WHERE type = 'table' "
+            "AND name = 'wedding_party_members'"
+        ).scalar()
+        if not constraints or "'M'" in constraints:
+            return
+        connection.exec_driver_sql("PRAGMA foreign_keys=OFF")
+        connection.exec_driver_sql("ALTER TABLE wedding_party_members RENAME TO wedding_party_members_old")
+        connection.exec_driver_sql(
+            """CREATE TABLE wedding_party_members (
+                id INTEGER NOT NULL PRIMARY KEY,
+                wedding_id INTEGER NOT NULL REFERENCES weddings (id),
+                role VARCHAR(1) NOT NULL,
+                hairstyle VARCHAR(1) NOT NULL,
+                by_me_quantity SMALLINT NOT NULL DEFAULT 0,
+                by_assistant_quantity SMALLINT NOT NULL DEFAULT 0,
+                CONSTRAINT ck_wedding_party_members_role_valid CHECK (role IN ('B', 'P', 'J', 'F', 'M', 'O')),
+                CONSTRAINT ck_wedding_party_members_hairstyle_valid CHECK (hairstyle IN ('U', 'D')),
+                CONSTRAINT ck_wedding_party_members_by_me_nonnegative CHECK (by_me_quantity >= 0),
+                CONSTRAINT ck_wedding_party_members_by_assistant_nonnegative CHECK (by_assistant_quantity >= 0)
+            )"""
+        )
+        connection.exec_driver_sql(
+            "INSERT INTO wedding_party_members "
+            "SELECT id, wedding_id, role, hairstyle, by_me_quantity, by_assistant_quantity "
+            "FROM wedding_party_members_old"
+        )
+        connection.exec_driver_sql("DROP TABLE wedding_party_members_old")
+        connection.exec_driver_sql(
+            "CREATE INDEX IF NOT EXISTS ix_wedding_party_members_wedding_id "
+            "ON wedding_party_members (wedding_id)"
+        )
+        connection.exec_driver_sql("PRAGMA foreign_keys=ON")
+
+
+def _ensure_individual_party_members() -> None:
+    with engine.begin() as connection:
+        columns = {column["name"] for column in inspect(connection).get_columns("wedding_party_members")}
+        if "assistant" in columns:
+            return
+        rows = connection.exec_driver_sql(
+            "SELECT id, wedding_id, role, hairstyle, by_me_quantity, by_assistant_quantity "
+            "FROM wedding_party_members"
+        ).fetchall()
+        connection.exec_driver_sql("PRAGMA foreign_keys=OFF")
+        connection.exec_driver_sql("ALTER TABLE wedding_party_members RENAME TO wedding_party_members_old")
+        connection.exec_driver_sql(
+            """CREATE TABLE wedding_party_members (
+                id INTEGER NOT NULL PRIMARY KEY,
+                wedding_id INTEGER NOT NULL REFERENCES weddings (id),
+                role VARCHAR(1) NOT NULL,
+                hairstyle VARCHAR(1) NOT NULL,
+                assistant BOOLEAN NOT NULL DEFAULT 0,
+                CONSTRAINT ck_wedding_party_members_role_valid CHECK (role IN ('B', 'P', 'J', 'F', 'M', 'O')),
+                CONSTRAINT ck_wedding_party_members_hairstyle_valid CHECK (hairstyle IN ('U', 'D')),
+                CONSTRAINT ck_wedding_party_members_assistant_valid CHECK (assistant IN (0, 1))
+            )"""
+        )
+        for row_id, wedding_id, role, hairstyle, by_me, by_assistant in rows:
+            for assistant, quantity in ((False, by_me), (True, by_assistant)):
+                for _ in range(quantity):
+                    connection.exec_driver_sql(
+                        "INSERT INTO wedding_party_members "
+                        "(wedding_id, role, hairstyle, assistant) VALUES (?, ?, ?, ?)",
+                        (wedding_id, role, hairstyle, assistant),
+                    )
+        connection.exec_driver_sql("DROP TABLE wedding_party_members_old")
+        connection.exec_driver_sql(
+            "CREATE INDEX IF NOT EXISTS ix_wedding_party_members_wedding_id "
+            "ON wedding_party_members (wedding_id)"
+        )
+        connection.exec_driver_sql("PRAGMA foreign_keys=ON")
+
+
 def _ensure_hair_service_count() -> None:
     with engine.begin() as connection:
         inspector = inspect(connection)
@@ -135,12 +213,15 @@ def main() -> None:
     if "clients" in inspect(engine).get_table_names():
         _ensure_client_inquiry_fields()
     if "weddings" in inspect(engine).get_table_names():
+        _ensure_party_member_roles()
         _ensure_hair_service_count()
         _ensure_invoice_sent_at()
     models.Base.metadata.create_all(bind=engine)
     _ensure_invoice_versioning()
     _ensure_bridal_trial_status()
     _ensure_client_inquiry_fields()
+    _ensure_party_member_roles()
+    _ensure_individual_party_members()
     _ensure_hair_service_count()
     _ensure_invoice_sent_at()
 

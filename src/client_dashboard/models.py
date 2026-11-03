@@ -118,7 +118,6 @@ class Wedding(TimestampMixin, Base):
     )
     wedding_date: Mapped[date] = mapped_column(Date, nullable=False)
     location: Mapped[str | None] = mapped_column(String(255))
-    hair_service_count: Mapped[int | None] = mapped_column(Integer)
     miles_one_way: Mapped[Decimal | None] = mapped_column(Numeric(8, 2))
     ready_by: Mapped[time | None] = mapped_column(Time)
     status: Mapped[int] = mapped_column(Integer, nullable=False, default=STATUS_INQUIRED)
@@ -148,26 +147,29 @@ class WeddingPartyMember(Base):
     __table_args__ = (
         Index("ix_wedding_party_members_wedding_id", "wedding_id"),
         CheckConstraint(
-            "role IN ('B', 'P', 'J', 'F')",
+            "role IN ('B', 'P', 'J', 'F', 'M', 'O')",
             name="ck_wedding_party_members_role_valid",
         ),
         CheckConstraint(
             "hairstyle IN ('U', 'D')",
             name="ck_wedding_party_members_hairstyle_valid",
         ),
-        CheckConstraint("by_me_quantity >= 0", name="ck_wedding_party_members_by_me_nonnegative"),
-        CheckConstraint("by_assistant_quantity >= 0", name="ck_wedding_party_members_by_assistant_nonnegative"),
+        CheckConstraint("assistant IN (0, 1)", name="ck_wedding_party_members_assistant_valid"),
     )
 
     ROLE_BRIDE = "B"
     ROLE_BRIDAL_PARTY = "P"
     ROLE_JUNIOR_BRIDESMAID = "J"
     ROLE_FLOWERGIRL = "F"
+    ROLE_MOB = "M"
+    ROLE_OTHER = "O"
     ROLE_VALUES = (
         ROLE_BRIDE,
         ROLE_BRIDAL_PARTY,
         ROLE_JUNIOR_BRIDESMAID,
         ROLE_FLOWERGIRL,
+        ROLE_MOB,
+        ROLE_OTHER,
     )
 
     HAIRSTYLE_UPDO = "U"
@@ -181,8 +183,7 @@ class WeddingPartyMember(Base):
     )
     role: Mapped[str] = mapped_column(String(1), nullable=False)
     hairstyle: Mapped[str] = mapped_column(String(1), nullable=False)
-    by_me_quantity: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=0)
-    by_assistant_quantity: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=0)
+    assistant: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     wedding: Mapped[Wedding] = relationship(back_populates="party_members")
 

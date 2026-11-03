@@ -706,6 +706,47 @@ nav small {
   margin-top: 7px;
   font-size: 12px;
 }
+.party-member-list {
+  margin-top: 24px;
+  border-top: 1px solid var(--line);
+}
+.party-member-heading,
+.party-member-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+.party-member-heading {
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+.party-member-heading span { text-align: right; }
+.party-member-row {
+  grid-template-columns: 1fr 1fr 1fr;
+  color: var(--ink);
+  font-size: 13px;
+}
+.party-member-number { color: var(--muted); }
+.party-member-row select {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px;
+  background: #fffdf9;
+  font: inherit;
+}
+.assistant-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
 .profile-page .profile-section {
   background: rgba(255, 253, 249, 0.75);
   border: 1px solid var(--line);

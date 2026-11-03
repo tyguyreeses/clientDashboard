@@ -35,6 +35,15 @@ export function App() {
   useEffect(() => {
     loadData();
   }, []);
+  const openWedding = async (wedding) => {
+    try {
+      const detail = await json(`/weddings/${wedding.id}`);
+      setSelected(weddingView(detail));
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
   const updateStatus = async (wedding, status) => {
     try {
       const updated = await json(`/weddings/${wedding.id}`, {
@@ -224,7 +233,7 @@ export function App() {
                 <WeddingSection
                   key={group.key}
                   group={group}
-                  onSelect={setSelected}
+                  onSelect={openWedding}
                   onStatus={updateStatus}
                 />
               ))}

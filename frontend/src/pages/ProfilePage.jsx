@@ -12,6 +12,8 @@ import {
   TRIAL_STATUS,
   weddingView,
   initials,
+  HAIRSTYLE,
+  PARTY_ROLE,
 } from "../utils";
 
 export function ProfilePage({ wedding, onClose, onSaved }) {
@@ -50,13 +52,26 @@ export function ProfilePage({ wedding, onClose, onSaved }) {
             wedding_date: draft.weddingDate,
             location: draft.location || null,
             ready_by: draft.readyBy || null,
-            hair_service_count: draft.hairServiceCount,
             status: Number(draft.status),
             bridal_trial_status: draft.bridalTrialStatus,
           }),
         }),
       ]);
-      const result = weddingView({ ...updatedWedding, client });
+      const members = draft.partyMembers || [];
+      await Promise.all(
+        members.map((member) =>
+          json(`/party-members/${member.id}`, {
+            method: "PATCH",
+            body: JSON.stringify({
+              role: member.role,
+              hairstyle: member.hairstyle,
+              assistant: Boolean(member.assistant),
+            }),
+          }),
+        ),
+      );
+      const refreshedWedding = await json(`/weddings/${draft.id}`);
+      const result = weddingView({ ...refreshedWedding, client });
       onSaved(result);
       setDraft(result);
       setEditing(false);
@@ -148,16 +163,60 @@ export function ProfilePage({ wedding, onClose, onSaved }) {
             <Editable label="Ready-by time" type="time" step={15 * 60} min="01:00" max="12:00" value={draft.readyBy} onChange={(value) => update("readyBy", value)} />
           ) : <Detail label="Ready by" value={draft.readyBy} />}
           {editing ? (
-            <Editable label="People needing hair done" type="number" min="0" step="1" value={draft.hairServiceCount ?? ""} onChange={(value) => update("hairServiceCount", value === "" ? null : Number(value))} />
-          ) : <Detail label="People needing hair done" value={draft.hairServiceCount ?? "Not specified"} />}
-          {editing ? (
             <div className="editable-select"><label>Workflow status</label><select value={draft.status} onChange={(event) => update("status", event.target.value)}>{Object.entries(STATUS).map(([value, option]) => <option key={value} value={value}>{option.label}</option>)}</select></div>
           ) : <Detail label="Workflow status" value={STATUS[draft.status]?.label} />}
           {editing ? (
             <div className="editable-select"><label>Bridal trial status</label><select value={draft.bridalTrialStatus} onChange={(event) => update("bridalTrialStatus", event.target.value)}>{Object.entries(TRIAL_STATUS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>
           ) : <Detail label="Bridal trial status" value={TRIAL_STATUS[draft.bridalTrialStatus]} />}
         </div>
-        <Detail label="Party" value={draft.party} />
+        <div className="party-member-list">
+          <div className="party-member-heading grouped-party-heading">
+            <strong>Type</strong><strong>Style</strong><strong>Assistant</strong>
+          </div>
+          {(draft.partyMembers || []).map((member, index) => (
+            <div className="party-member-row" key={member.id || `new-${index}`}>
+              {editing ? (
+                <select
+                  value={member.role}
+                  onChange={(event) =>
+                    setDraft((item) => ({
+                      ...item,
+                      partyMembers: item.partyMembers.map((old, oldIndex) =>
+                        oldIndex === index ? { ...old, role: event.target.value } : old,
+                      ),
+                    }))
+                  }
+                >
+                  {Object.entries(PARTY_ROLE).map(([value, label]) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </select>
+              ) : <span>{PARTY_ROLE[member.role] || "Other"}</span>}
+              {editing ? (
+                <select
+                  value={member.hairstyle}
+                  onChange={(event) =>
+                    setDraft((item) => ({
+                      ...item,
+                      partyMembers: item.partyMembers.map((old, oldIndex) =>
+                        oldIndex === index ? { ...old, hairstyle: event.target.value } : old,
+                      ),
+                    }))
+                  }
+                >
+                  {Object.entries(HAIRSTYLE).map(([value, label]) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </select>
+              ) : <span>{HAIRSTYLE[member.hairstyle]}</span>}
+              <label className="assistant-checkbox">
+                <input type="checkbox" checked={Boolean(member.assistant)} disabled={!editing} onChange={(event) => setDraft((item) => ({ ...item, partyMembers: item.partyMembers.map((old, oldIndex) => oldIndex === index ? { ...old, assistant: event.target.checked } : old) }))} />
+                Assistant
+              </label>
+            </div>
+          ))}
+          {!draft.partyMembers?.length && <p className="muted">No party members added.</p>}
+        </div>
       </section>
 
       <section className="profile-section">

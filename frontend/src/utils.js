@@ -8,6 +8,20 @@ export const STATUS = {
   4: { label: "Deposit received", tone: "booked" },
 };
 
+export const PARTY_ROLE = {
+  B: "Bride",
+  P: "Bridal Party",
+  F: "Flower Girl",
+  M: "MOB",
+  O: "Other",
+  J: "Other",
+};
+
+export const HAIRSTYLE = {
+  U: "Updo",
+  D: "Half up",
+};
+
 export const TRIAL_STATUS = {
   not_interested: "Not interested",
   interested: "Interested",
@@ -82,12 +96,8 @@ export function weddingView(wedding) {
     readyBy: timeLabel(wedding.ready_by),
     location: wedding.location || "Location TBD",
     miles: wedding.miles_one_way,
-    hairServiceCount: wedding.hair_service_count,
-    people: (wedding.party_members || []).reduce(
-      (sum, member) =>
-        sum + member.by_me_quantity + member.by_assistant_quantity,
-      0,
-    ),
+    partyMembers: wedding.party_members || [],
+    people: (wedding.party_members || []).length,
     bridalTrialStatus: wedding.bridal_trial_status,
     balance: 0,
     paid: "No payment recorded",

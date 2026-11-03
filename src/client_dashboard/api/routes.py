@@ -74,7 +74,10 @@ def _wedding_query(
     client_id: int | None = None,
     source: str | None = None,
 ) -> Select[tuple[Wedding]]:
-    query = select(Wedding).options(selectinload(Wedding.client))
+    query = select(Wedding).options(
+        selectinload(Wedding.client),
+        selectinload(Wedding.party_members),
+    )
     if source is not None:
         query = query.join(Wedding.client)
     if status_filter is not None:
@@ -136,8 +139,19 @@ def delete_client(client_id: int, session: Session = Depends(get_db)) -> None:
 @router.post("/weddings", response_model=WeddingRead, status_code=status.HTTP_201_CREATED)
 def create_wedding(payload: WeddingCreate, session: Session = Depends(get_db)) -> Wedding:
     _get_or_404(session, Client, payload.client_id, "Client not found")
-    wedding = Wedding(**payload.model_dump())
+    initial_count = payload.hair_service_count or 0
+    wedding = Wedding(**payload.model_dump(exclude={"hair_service_count"}))
     session.add(wedding)
+    session.flush()
+    for _ in range(initial_count):
+        session.add(
+            WeddingPartyMember(
+                wedding_id=wedding.id,
+                role=WeddingPartyMember.ROLE_BRIDAL_PARTY,
+                hairstyle=WeddingPartyMember.HAIRSTYLE_UPDO,
+                assistant=False,
+            )
+        )
     _commit(session)
     session.refresh(wedding)
     return _get_wedding_detail(session, wedding.id)
@@ -212,7 +226,10 @@ def create_party_member(
     session: Session = Depends(get_db),
 ) -> WeddingPartyMember:
     _get_or_404(session, Wedding, wedding_id, "Wedding not found")
-    member = WeddingPartyMember(wedding_id=wedding_id, **payload.model_dump())
+    data = payload.model_dump(exclude={"by_me_quantity", "by_assistant_quantity"})
+    if payload.by_assistant_quantity is not None or payload.by_me_quantity is not None:
+        data["assistant"] = bool(payload.by_assistant_quantity)
+    member = WeddingPartyMember(wedding_id=wedding_id, **data)
     session.add(member)
     _commit(session)
     session.refresh(member)
@@ -243,7 +260,14 @@ def update_party_member(
     session: Session = Depends(get_db),
 ) -> WeddingPartyMember:
     member = _get_or_404(session, WeddingPartyMember, party_member_id, "Party member not found")
-    _apply_updates(member, payload)
+    updates = payload.model_dump(
+        exclude_unset=True,
+        exclude={"by_me_quantity", "by_assistant_quantity"},
+    )
+    if payload.by_assistant_quantity is not None or payload.by_me_quantity is not None:
+        updates["assistant"] = bool(payload.by_assistant_quantity)
+    for field, value in updates.items():
+        setattr(member, field, value)
     _commit(session)
     session.refresh(member)
     return member

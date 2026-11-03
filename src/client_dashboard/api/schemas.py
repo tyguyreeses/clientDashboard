@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 WeddingStatus = Literal[0, 1, 2, 3, 4]
 BridalTrialStatus = Literal["not_interested", "interested", "link_sent", "booked", "cancelled"]
-PartyRole = Literal["B", "P", "J", "F"]
+PartyRole = Literal["B", "P", "J", "F", "M", "O"]
 HairStyle = Literal["U", "D"]
 
 
@@ -69,7 +69,6 @@ class WeddingBase(BaseModel):
     client_id: int
     wedding_date: date
     location: str | None = Field(default=None, max_length=255)
-    hair_service_count: int | None = Field(default=None, ge=0)
     miles_one_way: Decimal | None = Field(default=None, ge=0, max_digits=8, decimal_places=2)
     ready_by: time | None = None
     status: WeddingStatus = 1
@@ -79,14 +78,13 @@ class WeddingBase(BaseModel):
 
 
 class WeddingCreate(WeddingBase):
-    pass
+    hair_service_count: int | None = Field(default=None, ge=0)
 
 
 class WeddingUpdate(BaseModel):
     client_id: int | None = None
     wedding_date: date | None = None
     location: str | None = Field(default=None, max_length=255)
-    hair_service_count: int | None = Field(default=None, ge=0)
     miles_one_way: Decimal | None = Field(default=None, ge=0, max_digits=8, decimal_places=2)
     ready_by: time | None = None
     status: WeddingStatus | None = None
@@ -98,8 +96,10 @@ class WeddingUpdate(BaseModel):
 class WeddingPartyMemberBase(BaseModel):
     role: PartyRole
     hairstyle: HairStyle
-    by_me_quantity: int = Field(default=0, ge=0)
-    by_assistant_quantity: int = Field(default=0, ge=0)
+    assistant: bool = False
+    # Deprecated compatibility fields for older API clients.
+    by_me_quantity: int | None = Field(default=None, ge=0)
+    by_assistant_quantity: int | None = Field(default=None, ge=0)
 
 
 class WeddingPartyMemberCreate(WeddingPartyMemberBase):
@@ -109,9 +109,10 @@ class WeddingPartyMemberCreate(WeddingPartyMemberBase):
 class WeddingPartyMemberUpdate(BaseModel):
     role: PartyRole | None = None
     hairstyle: HairStyle | None = None
+    assistant: bool | None = None
+    # Deprecated compatibility fields for older API clients.
     by_me_quantity: int | None = Field(default=None, ge=0)
     by_assistant_quantity: int | None = Field(default=None, ge=0)
-
 
 class WeddingPartyMemberRead(WeddingPartyMemberBase, ORMModel):
     id: int
@@ -123,7 +124,6 @@ class WeddingRead(TimestampRead):
     client_id: int
     wedding_date: date
     location: str | None
-    hair_service_count: int | None
     miles_one_way: Decimal | None
     ready_by: time | None
     status: WeddingStatus
@@ -139,8 +139,8 @@ class WeddingListItem(TimestampRead):
     client_id: int
     wedding_date: date
     location: str | None
-    hair_service_count: int | None
     miles_one_way: Decimal | None
+    party_members: list[WeddingPartyMemberRead] = Field(default_factory=list)
     ready_by: time | None
     status: WeddingStatus
     bridal_trial_status: BridalTrialStatus

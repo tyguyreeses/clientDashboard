@@ -79,17 +79,17 @@ export function AddClientModal({ onClose, onCreated }) {
         {error && <div className="api-message error">{error}</div>}
         <div className="modal-fields">
           <Editable
+            label="Full name *"
+            value={form.name}
+            required
+            onChange={(value) => update("name", value)}
+          />
+          <Editable
             label="Email *"
             type="email"
             value={form.email}
             required
             onChange={(value) => update("email", value)}
-          />
-          <Editable
-            label="Full name *"
-            value={form.name}
-            required
-            onChange={(value) => update("name", value)}
           />
           <Editable
             label="Phone number"
@@ -135,22 +135,22 @@ export function AddClientModal({ onClose, onCreated }) {
             onChange={(value) => update("ready_by", value)}
           />
           <SelectField
-            label="Interested in makeup services? *"
+            label="Makeup recommendations? *"
             value={form.makeup}
             onChange={(value) => update("makeup", value)}
             options={[
-              ["yes", "Yes please!"],
-              ["already", "Already got my girl!"],
+              ["yes", "Yes"],
+              ["already", "No"],
             ]}
             required
           />
           <SelectField
-            label="Interested in a bridal trial? *"
+            label="Bridal trial? *"
             value={form.bridal_trial}
             onChange={(value) => update("bridal_trial", value)}
             options={[
-              ["yes", "Yes please!"],
-              ["thinking", "I’m still thinking about it!"],
+              ["yes", "Yes"],
+              ["thinking", "Still thinking"],
             ]}
             required
           />
@@ -159,9 +159,9 @@ export function AddClientModal({ onClose, onCreated }) {
             value={form.planning_stage}
             onChange={(value) => update("planning_stage", value)}
             options={[
-              ["looking", "Just looking around"],
-              ["invoice", "Love your work — send pricing info"],
-              ["book", "So excited to book!"],
+              ["looking", "Exploring"],
+              ["invoice", "Send invoice"],
+              ["book", "Book now"],
             ]}
             required
           />
@@ -170,8 +170,8 @@ export function AddClientModal({ onClose, onCreated }) {
             value={form.recommendations}
             onChange={(value) => update("recommendations", value)}
             options={[
-              ["yes", "Yes, please"],
-              ["no", "No thanks"],
+              ["yes", "Yes"],
+              ["no", "No"],
             ]}
           />
           <Editable
