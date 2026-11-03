@@ -123,7 +123,8 @@ export function App() {
         }}
         onAddClient={() => setShowAddClient(true)}
       />
-      {selected ? (
+      <>
+        {selected && (
         <ProfilePage
           wedding={selected}
           onClose={() => setSelected(null)}
@@ -155,7 +156,8 @@ export function App() {
             setSelected(item);
           }}
         />
-      ) : page === "clients" ? (
+        )}
+        {page === "clients" ? (
         <ClientsPage
           clients={clients}
           weddings={weddings}
@@ -260,7 +262,8 @@ export function App() {
             </div>
           </div>
         </main>
-      )}
+        )}
+      </>
       <Footer />
       {showAddClient && (
         <AddClientModal
