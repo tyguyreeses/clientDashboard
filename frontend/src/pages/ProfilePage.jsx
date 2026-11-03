@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Editable } from "../components/FormFields";
+import { Detail, Editable } from "../components/FormFields";
 import {
   formatDate,
   json,
