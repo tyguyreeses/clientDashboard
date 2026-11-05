@@ -55,7 +55,6 @@ function InvoiceSummary({ wedding, invoice, invoiceWarnings, assistantReceipt, p
       {wedding.venue && <span>Venue: {wedding.venue}</span>}
     </div>
     <div className="invoice-meta"><span>Ready by {invoice.timing_details?.ready_by || "—"}</span><span>Start at {invoice.timing_details?.start_time || "—"}</span><span>{invoice.timing_details?.service_minutes || 0} minutes</span></div>
-    <div className="invoice-durations">Service durations: bride {invoice.timing_details?.service_durations?.bride || 0} min · updo {invoice.timing_details?.service_durations?.bridal_party_updo || 0} min · down {invoice.timing_details?.service_durations?.bridal_party_down || 0} min · flower girl {invoice.timing_details?.service_durations?.flowergirl || 0} min</div>
     <div className="invoice-lines">{invoice.line_items.map((item, index) => <div className="invoice-line" key={`${item.description}-${index}`}><span>{item.description} × {item.quantity}</span><strong>${item.total}</strong></div>)}</div>
     <div className="invoice-total-row"><span>Total</span><strong>${invoice.grand_total}</strong></div>
     <div className="invoice-balance"><span>Non-refundable deposit: ${invoice.deposit_amount}</span><span>Remaining balance: ${invoice.balance_due}</span><span>Balance due date: {formatDate(invoice.timing_details?.balance_due_date || wedding.weddingDate)}</span></div>
