@@ -40,6 +40,7 @@ from ..models import (
     PricingVersion,
     Wedding,
     WeddingPartyMember,
+    WeddingStatusProgress,
 )
 
 router = APIRouter()
@@ -125,6 +126,7 @@ def _wedding_query(
     query = select(Wedding).options(
         selectinload(Wedding.client),
         selectinload(Wedding.party_members),
+        selectinload(Wedding.status_progress),
     )
     if source is not None:
         query = query.join(Wedding.client)
@@ -180,7 +182,11 @@ def update_client(client_id: int, payload: ClientUpdate, session: Session = Depe
         return client
     weddings = session.scalars(
         select(Wedding)
-        .options(selectinload(Wedding.client), selectinload(Wedding.party_members))
+        .options(
+            selectinload(Wedding.client),
+            selectinload(Wedding.party_members),
+            selectinload(Wedding.status_progress),
+        )
         .where(Wedding.client_id == client.id)
     ).all()
     warnings = []
@@ -208,6 +214,13 @@ def create_wedding(payload: WeddingCreate, session: Session = Depends(get_db)) -
     wedding = Wedding(**payload.model_dump(exclude={"hair_service_count"}))
     session.add(wedding)
     session.flush()
+    session.add(
+        WeddingStatusProgress(
+            wedding_id=wedding.id,
+            status=wedding.status,
+            forward_entered_at=wedding.created_at,
+        )
+    )
     for index in range(initial_count):
         session.add(
             WeddingPartyMember(
@@ -233,7 +246,11 @@ def create_wedding(payload: WeddingCreate, session: Session = Depends(get_db)) -
 def _get_wedding_detail(session: Session, wedding_id: int) -> Wedding:
     stmt = (
         select(Wedding)
-        .options(selectinload(Wedding.client), selectinload(Wedding.party_members))
+        .options(
+            selectinload(Wedding.client),
+            selectinload(Wedding.party_members),
+            selectinload(Wedding.status_progress),
+        )
         .where(Wedding.id == wedding_id)
     )
     wedding = session.scalars(stmt).first()
@@ -273,6 +290,25 @@ def get_wedding(wedding_id: int, session: Session = Depends(get_db)) -> Wedding:
 def update_wedding(wedding_id: int, payload: WeddingUpdate, session: Session = Depends(get_db)) -> Wedding:
     wedding = _get_or_404(session, Wedding, wedding_id, "Wedding not found")
     updates = payload.model_dump(exclude_unset=True)
+    previous_status = wedding.status
+    next_status = updates.get("status")
+    if next_status is not None and next_status > previous_status:
+        progress = session.scalar(
+            select(WeddingStatusProgress).where(
+                WeddingStatusProgress.wedding_id == wedding.id,
+                WeddingStatusProgress.status == next_status,
+            )
+        )
+        now = datetime.now(timezone.utc)
+        if progress is None:
+            progress = WeddingStatusProgress(
+                wedding_id=wedding.id,
+                status=next_status,
+                forward_entered_at=now,
+            )
+            session.add(progress)
+        else:
+            progress.forward_entered_at = now
     if updates.get("status") in (Wedding.STATUS_CANCELLED, Wedding.STATUS_COMPLETED):
         wedding.client.archived = True
     if updates.get("status") == Wedding.STATUS_RESPONDED and wedding.invoice_sent_at is None:
@@ -315,8 +351,6 @@ def create_party_member(
         data["assistant"] = bool(payload.by_assistant_quantity)
     wedding = _get_or_404(session, Wedding, wedding_id, "Wedding not found")
     member = WeddingPartyMember(wedding_id=wedding_id, **data)
-    if member.assistant:
-        wedding.assistant = True
     session.add(member)
     warning = _refresh_existing_invoice(session, _get_wedding_detail(session, wedding_id))
     _commit(session)
@@ -357,8 +391,6 @@ def update_party_member(
         updates["assistant"] = bool(payload.by_assistant_quantity)
     for field, value in updates.items():
         setattr(member, field, value)
-    if member.assistant:
-        member.wedding.assistant = True
     warning = _refresh_existing_invoice(session, _get_wedding_detail(session, member.wedding_id))
     _commit(session)
     session.refresh(member)
@@ -372,14 +404,6 @@ def delete_party_member(party_member_id: int, session: Session = Depends(get_db)
     wedding = _get_wedding_detail(session, member.wedding_id)
     session.delete(member)
     session.flush()
-    wedding.assistant = session.scalar(
-        select(WeddingPartyMember.id)
-        .where(
-            WeddingPartyMember.wedding_id == wedding.id,
-            WeddingPartyMember.assistant.is_(True),
-        )
-        .limit(1)
-    ) is not None
     _refresh_existing_invoice(session, wedding)
     _commit(session)
 

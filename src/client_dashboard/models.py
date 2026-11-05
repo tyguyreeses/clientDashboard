@@ -17,6 +17,7 @@ from sqlalchemy import (
     String,
     Text,
     Time,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -135,8 +136,6 @@ class Wedding(TimestampMixin, Base):
     bridal_trial_status: Mapped[str] = mapped_column(
         String(20), nullable=False, default=BRIDAL_TRIAL_NOT_INTERESTED
     )
-    assistant: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-
     client: Mapped[Client] = relationship(back_populates="weddings")
     party_members: Mapped[list[WeddingPartyMember]] = relationship(
         back_populates="wedding",
@@ -150,6 +149,26 @@ class Wedding(TimestampMixin, Base):
         back_populates="wedding",
         cascade="all, delete-orphan",
     )
+    status_progress: Mapped[list[WeddingStatusProgress]] = relationship(
+        back_populates="wedding",
+        cascade="all, delete-orphan",
+    )
+
+
+class WeddingStatusProgress(Base):
+    __tablename__ = "wedding_status_progress"
+    __table_args__ = (
+        Index("ix_wedding_status_progress_wedding_id", "wedding_id"),
+        UniqueConstraint("wedding_id", "status", name="uq_wedding_status_progress_status"),
+        CheckConstraint("status IN (0, 1, 2, 3, 4, 5, 6)", name="ck_wedding_status_progress_status_valid"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    wedding_id: Mapped[int] = mapped_column(ForeignKey("weddings.id", ondelete="CASCADE"), nullable=False)
+    status: Mapped[int] = mapped_column(Integer, nullable=False)
+    forward_entered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    wedding: Mapped[Wedding] = relationship(back_populates="status_progress")
 
 
 class WeddingPartyMember(Base):

@@ -126,7 +126,10 @@ def calculate_invoice(
         )
         for member in members
     )
-    effective_assistant = wedding.assistant or any(member.assistant for member in members)
+    # Assistant billing is determined by the party-member assignments. The
+    # wedding-level flag is retained for compatibility but must not create an
+    # assistant fee when every member is assigned to the primary stylist.
+    effective_assistant = any(member.assistant for member in members)
 
     bride_total = money(pricing.bride_price * bride_count)
     party_total = money(pricing.bridesmaid_price * party_count)
@@ -227,7 +230,7 @@ def calculate_invoice(
             "venue": wedding.venue,
             "miles_one_way": distance_string(wedding.miles_one_way),
             "ready_by": _time_string(wedding.ready_by),
-            "assistant": wedding.assistant,
+            "assistant": effective_assistant,
             "bridal_trial_status": wedding.bridal_trial_status,
         },
         "client": {"id": client.id, "is_referral": client.is_referral},

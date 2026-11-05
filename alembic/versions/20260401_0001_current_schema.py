@@ -20,7 +20,12 @@ def upgrade() -> None:
     # This is the baseline migration for the project. Future schema changes
     # should be represented by normal Alembic revisions rather than changing
     # the models and recreating the database.
-    models.Base.metadata.create_all(bind=op.get_bind())
+    # Keep later revisions responsible for tables introduced after the baseline.
+    tables = [
+        table for table in models.Base.metadata.sorted_tables
+        if table.name != "wedding_status_progress"
+    ]
+    models.Base.metadata.create_all(bind=op.get_bind(), tables=tables)
 
 
 def downgrade() -> None:

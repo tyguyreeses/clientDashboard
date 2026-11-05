@@ -16,6 +16,7 @@ EXPECTED_TABLES = (
     "clients",
     "weddings",
     "wedding_party_members",
+    "wedding_status_progress",
     "pricing_versions",
     "invoices",
     "assistant_receipts",

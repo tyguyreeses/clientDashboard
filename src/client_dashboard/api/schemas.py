@@ -79,7 +79,6 @@ class WeddingBase(BaseModel):
     status: WeddingStatus = 1
     invoice_sent_at: datetime | None = None
     bridal_trial_status: BridalTrialStatus = "not_interested"
-    assistant: bool = False
 
 
 class WeddingCreate(WeddingBase):
@@ -97,7 +96,6 @@ class WeddingUpdate(BaseModel):
     status: WeddingStatus | None = None
     invoice_sent_at: datetime | None = None
     bridal_trial_status: BridalTrialStatus | None = None
-    assistant: bool | None = None
 
 
 class WeddingPartyMemberBase(BaseModel):
@@ -127,6 +125,11 @@ class WeddingPartyMemberRead(WeddingPartyMemberBase, ORMModel):
     invoice_warnings: list[str] = Field(default_factory=list)
 
 
+class WeddingStatusProgressRead(ORMModel):
+    status: WeddingStatus
+    forward_entered_at: datetime
+
+
 class WeddingRead(TimestampRead):
     id: int
     client_id: int
@@ -138,8 +141,8 @@ class WeddingRead(TimestampRead):
     ready_by: time | None
     status: WeddingStatus
     invoice_sent_at: datetime | None
+    status_progress: list[WeddingStatusProgressRead] = Field(default_factory=list)
     bridal_trial_status: BridalTrialStatus
-    assistant: bool
     client: ClientSummary | None = None
     party_members: list[WeddingPartyMemberRead] = Field(default_factory=list)
     invoice_warnings: list[str] = Field(default_factory=list)
@@ -156,8 +159,8 @@ class WeddingListItem(TimestampRead):
     party_members: list[WeddingPartyMemberRead] = Field(default_factory=list)
     ready_by: time | None
     status: WeddingStatus
+    status_progress: list[WeddingStatusProgressRead] = Field(default_factory=list)
     bridal_trial_status: BridalTrialStatus
-    assistant: bool
     client: ClientSummary | None = None
 
 
