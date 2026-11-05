@@ -102,7 +102,8 @@ export const timeLabel = (value) => formatTime(value);
 
 export const timeSince = (value) => {
   if (!value) return "Inquiry date unknown";
-  const inquiry = new Date(`${value}T00:00:00`);
+  const rawValue = String(value);
+  const inquiry = new Date(rawValue.includes("T") ? rawValue : `${rawValue}T00:00:00`);
   const today = new Date();
   inquiry.setHours(0, 0, 0, 0);
   today.setHours(0, 0, 0, 0);
@@ -139,6 +140,8 @@ export function weddingView(wedding) {
     initials: initials(client.name),
     weddingDate: wedding.wedding_date,
     invoiceSentAt: wedding.invoice_sent_at,
+    statusProgress: wedding.status_progress || [],
+    statusEnteredAt: (wedding.status_progress || []).find((entry) => entry.status === wedding.status)?.forward_entered_at || wedding.updated_at,
     readyBy: wedding.ready_by ? wedding.ready_by.slice(0, 5) : "",
     readyByLabel: formatTime(wedding.ready_by),
     address: wedding.address || "",

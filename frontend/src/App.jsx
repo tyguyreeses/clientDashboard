@@ -3,7 +3,7 @@ import { AddClientModal } from "./components/AddClientModal";
 import { Footer, Header } from "./components/Layout";
 import { HistoryPage } from "./pages/HistoryPage";
 import { ProfilePage } from "./pages/ProfilePage";
-import { KanbanBoard, Stat } from "./components/WeddingBoard";
+import { BookingRate, KanbanBoard, Stat } from "./components/WeddingBoard";
 import { initials, json, weddingView } from "./utils";
 
 export function App() {
@@ -14,10 +14,10 @@ export function App() {
   const [showAddClient, setShowAddClient] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
+  const [revenueToDate, setRevenueToDate] = useState(0);
 
-  const loadData = async () => {
-    setLoading(true);
+  const loadData = async (showLoading = true) => {
+    if (showLoading) setLoading(true);
     setError("");
     try {
       const [clientData, weddingData] = await Promise.all([
@@ -25,7 +25,34 @@ export function App() {
         json("/weddings"),
       ]);
       setClients(clientData);
-      setWeddings(weddingData.map(weddingView));
+      const weddingViews = weddingData.map(weddingView);
+      setWeddings(weddingViews);
+      const today = new Date().toISOString().slice(0, 10);
+      const currentYear = today.slice(0, 4);
+      const revenueItems = weddingViews.filter(
+        (wedding) => wedding.status >= 4 || wedding.bridalTrialStatus === "complete",
+      );
+      const invoices = await Promise.all(
+        revenueItems.map(async (wedding) => {
+          try {
+            return await json(`/weddings/${wedding.id}/invoice`);
+          } catch {
+            return null;
+          }
+        }),
+      );
+      const revenue = invoices.reduce((total, invoice, index) => {
+        if (!invoice) return total;
+        const wedding = revenueItems[index];
+        const invoiceAmount = wedding.status >= 5
+          ? Number(invoice.grand_total || 0)
+          : Number(invoice.deposit_amount || 0);
+        const trialAmount = wedding.bridalTrialStatus === "complete"
+          ? Number(invoice.pricing_version?.trial_price || 0)
+          : 0;
+        return total + invoiceAmount + trialAmount;
+      }, 0);
+      setRevenueToDate(revenue);
     } catch (err) {
       setError(`${err.message}. Is the FastAPI server running on port 8000?`);
     } finally {
@@ -47,6 +74,9 @@ export function App() {
   const updateStatus = async (weddingOrId, status) => {
     const wedding = typeof weddingOrId === "object" ? weddingOrId : weddings.find((item) => item.id === Number(weddingOrId));
     if (!wedding) return;
+    setWeddings((items) => items.map((item) => (
+      item.id === wedding.id ? { ...item, status: Number(status) } : item
+    )));
     try {
       const updated = await json(`/weddings/${wedding.id}`, {
         method: "PATCH",
@@ -68,9 +98,10 @@ export function App() {
             : item,
         ),
       );
-      setNotice("Status saved");
+      await loadData(false);
     } catch (err) {
       setError(err.message);
+      await loadData(false);
     }
   };
   const groups = useMemo(() => {
@@ -80,9 +111,17 @@ export function App() {
       status,
       label,
       color,
-      items: weddings.filter((item) => item.status === status).sort((a, b) => a.weddingDate.localeCompare(b.weddingDate)),
+      items: weddings.filter((item) => item.status === status).sort((a, b) => String(a.statusEnteredAt || "").localeCompare(String(b.statusEnteredAt || ""))),
     }));
   }, [weddings]);
+  const today = new Date().toISOString().slice(0, 10);
+  const currentYear = today.slice(0, 4);
+  const inquiriesToDate = clients.filter((client) => {
+    const inquiryDate = String(client.inquiryDate || client.inquiry_date || "").slice(0, 10);
+    return inquiryDate.startsWith(currentYear) && inquiryDate <= today;
+  }).length;
+  const bookedToDate = weddings.filter((wedding) => wedding.status >= 4 && wedding.status <= 6).length;
+  const bookingPercentage = inquiriesToDate ? Math.round((bookedToDate / inquiriesToDate) * 100) : 0;
   return (
     <div className="app-shell">
       <Header
@@ -93,6 +132,9 @@ export function App() {
         }}
         onAddClient={() => setShowAddClient(true)}
       />
+      <div className="brand-banner" aria-label="Hair By Maddie banner">
+        <img src="/logo_banner.PNG" alt="Hair By Maddie · Bridal Hairstylist" />
+      </div>
       <>
         {selected && (
         <ProfilePage
@@ -125,6 +167,7 @@ export function App() {
               ),
             );
             setSelected(item);
+            loadData(false);
           }}
         />
         )}
@@ -152,21 +195,21 @@ export function App() {
               {error} <button onClick={loadData}>Retry</button>
             </div>
           )}
-          {notice && <div className="api-message success">{notice}</div>}
           <div className="stats-row">
             <Stat
-              label="Upcoming celebrations"
-              value={weddings.filter((item) => item.status === 4).length}
+              label="Inquiries to date"
+              value={inquiriesToDate}
+              accent="coral"
+            />
+            <Stat
+              label="Booked to date"
+              value={bookedToDate}
               accent="peach"
             />
+            <BookingRate percentage={bookingPercentage} />
             <Stat
-              label="Awaiting a deposit"
-              value={weddings.filter((item) => item.status === 3).length}
-              accent="butter"
-            />
-            <Stat
-              label="Clients in your care"
-              value={clients.length}
+              label="Revenue to date"
+              value={`$${revenueToDate.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
               accent="lavender"
             />
           </div>
