@@ -124,6 +124,24 @@ export function ProfilePage({ wedding, onClose, onSaved }) {
     onClose();
   };
 
+  const changeTrialStatus = async (value) => {
+    setSaving(true);
+    setError("");
+    try {
+      const updatedWedding = await json(`/weddings/${draft.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ bridal_trial_status: value }),
+      });
+      setDraft((current) => ({ ...current, bridalTrialStatus: value }));
+      onSaved(weddingView(updatedWedding));
+      await loadInvoiceData();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const save = async () => {
     setSaving(true);
     setError("");
@@ -279,7 +297,7 @@ export function ProfilePage({ wedding, onClose, onSaved }) {
             <div className="editable-select"><label>Bridal trial status</label><select value={draft.bridalTrialStatus} onChange={(event) => update("bridalTrialStatus", event.target.value)}>{Object.entries(TRIAL_STATUS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>
           )}
         </div>
-        <TrialBoard status={draft.bridalTrialStatus} onChange={(value) => update("bridalTrialStatus", value)} />
+        <TrialBoard status={draft.bridalTrialStatus} onChange={changeTrialStatus} />
         <div className="party-member-list">
           <div className="party-member-heading grouped-party-heading">
             <strong>Type</strong><strong>Style</strong><strong>Assistant</strong>
