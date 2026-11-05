@@ -2,10 +2,8 @@ export function Header({ page, onNavigate, onAddClient }) {
   return (
     <header className="site-header">
       <a className="brand" href="#" onClick={() => onNavigate("dashboard")}>
-        <span className="brand-mark">✿</span>
-        <span>
-          blossom <i>&</i> veil
-        </span>
+        <img className="brand-favicon" src="/favicon.PNG" alt="" />
+        <span>Hair By Maddie</span>
       </a>
       <nav>
         <a
@@ -16,7 +14,7 @@ export function Header({ page, onNavigate, onAddClient }) {
             onNavigate("dashboard");
           }}
         >
-          Wedding board
+          Dashboard
         </a>
         <a
           className={page === "history" ? "active" : ""}
@@ -48,8 +46,8 @@ export function Header({ page, onNavigate, onAddClient }) {
 export function Footer() {
   return (
     <footer className="site-footer">
-      <span>
-        <span className="footer-flower">✿</span> Client dashboard
+      <span className="footer-brand">
+        <img src="/favicon.PNG" alt="" /> Hair By Maddie
       </span>
       <span>Connected to API</span>
     </footer>
