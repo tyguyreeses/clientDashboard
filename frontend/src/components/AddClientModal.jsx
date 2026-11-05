@@ -17,6 +17,7 @@ export function AddClientModal({ onClose, onCreated }) {
     city: "",
     venue: "",
     ready_by: "",
+    miles_one_way: "",
     party_details: "1",
     makeup: "",
     bridal_trial: "",
@@ -63,6 +64,7 @@ export function AddClientModal({ onClose, onCreated }) {
           city: form.city || null,
           venue: form.venue || null,
           ready_by: form.ready_by || null,
+          miles_one_way: form.miles_one_way === "" ? null : form.miles_one_way,
           hair_service_count: Number(form.party_details),
           status: 1,
           bridal_trial_status:
@@ -153,6 +155,15 @@ export function AddClientModal({ onClose, onCreated }) {
             value={form.ready_by}
             required
             onChange={(value) => update("ready_by", value)}
+          />
+          <Editable
+            label="Miles one way *"
+            type="number"
+            min="0"
+            step="0.01"
+            value={form.miles_one_way}
+            required
+            onChange={(value) => update("miles_one_way", value)}
           />
           <SelectField
             label="Makeup recommendations? *"
