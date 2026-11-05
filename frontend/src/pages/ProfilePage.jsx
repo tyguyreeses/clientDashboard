@@ -7,6 +7,7 @@ import {
 } from "../components/FormFields";
 import {
   formatDate,
+  formatTime,
   json,
   STATUS,
   TRIAL_STATUS,
@@ -47,17 +48,10 @@ function InvoiceSummary({ wedding, invoice, invoiceWarnings, assistantReceipt, p
     <div className="profile-section-title"><span className="section-number mint-number">03</span><div><p className="eyebrow">Billing</p><h2>Invoice summary</h2></div><button className="profile-save" onClick={() => onGenerate(invoice.pricing_version_id)} disabled={invoiceLoading}>{invoiceLoading ? "Generating…" : "Regenerate invoice"}</button></div>
     <div className="invoice-controls"><label>Pricing version<select value={invoice.pricing_version_id} disabled={invoiceLoading} onChange={(event) => onGenerate(Number(event.target.value))}>{pricingVersions.map((version) => <option key={version.id} value={version.id}>{version.name}</option>)}</select></label><button className="profile-save" onClick={onCopy}>{copied ? "Copied" : "Copy invoice message"}</button></div>
     {(invoiceWarnings?.length > 0 || invoice.warnings?.length > 0) && <div className="invoice-warnings"><strong>Invoice warnings</strong>{[...(invoiceWarnings || []), ...(invoice.warnings || [])].map((warning, index) => <div key={`${warning}-${index}`}>{warning}</div>)}</div>}
-    <div className="invoice-details">
-      <strong>{wedding.name}</strong>
-      <span>Wedding date: {formatDate(wedding.weddingDate)}</span>
-      <span>Address: {wedding.address || "—"}</span>
-      {wedding.city && <span>City: {wedding.city}</span>}
-      {wedding.venue && <span>Venue: {wedding.venue}</span>}
-    </div>
-    <div className="invoice-meta"><span>Ready by {invoice.timing_details?.ready_by || "—"}</span><span>Start at {invoice.timing_details?.start_time || "—"}</span><span>{invoice.timing_details?.service_minutes || 0} minutes</span></div>
+    <div className="invoice-schedule"><div><small>Start at</small><strong>{formatTime(invoice.timing_details?.start_time)}</strong></div><div><small>Ready by</small><strong>{formatTime(invoice.timing_details?.ready_by)}</strong></div><div><small>Service time</small><strong>{invoice.timing_details?.service_minutes || 0} min</strong></div></div>
     <div className="invoice-lines">{invoice.line_items.map((item, index) => <div className="invoice-line" key={`${item.description}-${index}`}><span>{item.description} × {item.quantity}</span><strong>${item.total}</strong></div>)}</div>
     <div className="invoice-total-row"><span>Total</span><strong>${invoice.grand_total}</strong></div>
-    <div className="invoice-balance"><span>Non-refundable deposit: ${invoice.deposit_amount}</span><span>Remaining balance: ${invoice.balance_due}</span><span>Balance due date: {formatDate(invoice.timing_details?.balance_due_date || wedding.weddingDate)}</span></div>
+    <div className="invoice-financials"><div><small>Non-refundable deposit</small><strong>${invoice.deposit_amount}</strong></div><div><small>Remaining balance</small><strong>${invoice.balance_due}</strong></div><div><small>Balance due date</small><strong>{formatDate(invoice.timing_details?.balance_due_date || wedding.weddingDate)}</strong></div></div>
     {assistantReceipt && <div className="assistant-receipt"><h3>Assistant receipt</h3><div>Total paid to assistant: ${assistantReceipt.total_paid_to_assistant}</div><div>Assisted bridal-party members: {assistantReceipt.assisted_bridesmaid_count}</div></div>}
   </section>;
 }
@@ -161,7 +155,7 @@ export function ProfilePage({ wedding, onClose, onSaved }) {
             city: draft.city || null,
             venue: draft.venue || null,
             miles_one_way: draft.miles ?? null,
-            ready_by: draft.readyBy === "Time TBD" ? null : (draft.readyBy || null),
+            ready_by: draft.readyBy || null,
             status: Number(draft.status),
             bridal_trial_status: draft.bridalTrialStatus,
           }),
@@ -244,9 +238,6 @@ export function ProfilePage({ wedding, onClose, onSaved }) {
           {editingSection !== "header" && <p>Inquiry: {formatDate(draft.inquiryDate)}</p>}
         </div>
         <div className="profile-actions">
-          <button className="profile-save invoice-action" onClick={() => generateInvoice()} disabled={invoiceLoading}>
-            {invoiceLoading ? "Generating…" : invoice ? "Regenerate invoice" : "Generate invoice"}
-          </button>
           {editingSection === "header" ? (
             <>
               <button className="profile-save" onClick={save} disabled={saving}>{saving ? "Saving…" : "Save"}</button>
@@ -279,8 +270,8 @@ export function ProfilePage({ wedding, onClose, onSaved }) {
             <Editable label="Venue" value={draft.venue} onChange={(value) => update("venue", value)} />
           ) : <Detail label="Venue" value={draft.venue} />}
           {editingSection === "wedding" ? (
-            <Editable label="Ready-by time" type="time" step={15 * 60} min="01:00" max="12:00" value={draft.readyBy} onChange={(value) => update("readyBy", value)} />
-          ) : <Detail label="Ready by" value={draft.readyBy} />}
+            <Editable label="Ready-by time" type="time" step="900" min="00:00" max="23:59" value={draft.readyBy} onChange={(value) => update("readyBy", value)} />
+          ) : <Detail label="Ready by" value={draft.readyByLabel} />}
           {editingSection === "wedding" ? (
             <div className="editable-select"><label>Workflow status</label><select value={draft.status} onChange={(event) => update("status", event.target.value)}>{Object.entries(STATUS).map(([value, option]) => <option key={value} value={value}>{option.label}</option>)}</select></div>
           ) : <Detail label="Workflow status" value={STATUS[draft.status]?.label} />}

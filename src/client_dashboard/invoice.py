@@ -29,6 +29,12 @@ def _time_string(value: time | None) -> str | None:
     return value.strftime("%H:%M") if value else None
 
 
+def _message_time_string(value: time | None) -> str:
+    if value is None:
+        return "Time TBD"
+    return value.strftime("%I:%M %p").lstrip("0")
+
+
 def _service_minutes(member: WeddingPartyMember, pricing: PricingVersion) -> int:
     if member.role == WeddingPartyMember.ROLE_BRIDE:
         return int(pricing.bride_duration_minutes)
@@ -267,8 +273,8 @@ def calculate_invoice(
         message_lines.append(f"Venue: {wedding.venue}")
     message_lines.extend([
         f"Address: {wedding.address}",
-        f"Ready by: {_time_string(wedding.ready_by)}",
-        f"We will start at {_time_string(start_time)} and expect approximately {service_minutes} minutes of service.",
+        f"Ready by: {_message_time_string(wedding.ready_by)}",
+        f"We will start at {_message_time_string(start_time)} and expect approximately {service_minutes} minutes of service.",
         "Service durations: "
         f"bride {pricing.bride_duration_minutes} min, "
         f"bridal party updo {pricing.bridesmaid_updo_duration_minutes} min, "

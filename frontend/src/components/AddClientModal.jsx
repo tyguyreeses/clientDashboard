@@ -149,9 +149,9 @@ export function AddClientModal({ onClose, onCreated }) {
           <Editable
             label="Ready-by time *"
             type="time"
-            min="01:00"
-            max="12:00"
-            step={15 * 60}
+            min="00:00"
+            max="23:59"
+            step="900"
             value={form.ready_by}
             required
             onChange={(value) => update("ready_by", value)}

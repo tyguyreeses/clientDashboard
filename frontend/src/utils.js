@@ -80,7 +80,15 @@ export const initials = (name = "") =>
     .slice(0, 2)
     .toUpperCase();
 
-export const timeLabel = (value) => (value ? value.slice(0, 5) : "Time TBD");
+export const formatTime = (value) => {
+  if (!value) return "Time TBD";
+  const [hours, minutes] = value.slice(0, 5).split(":").map(Number);
+  const suffix = hours >= 12 ? "PM" : "AM";
+  const displayHour = hours % 12 || 12;
+  return `${displayHour}:${String(minutes).padStart(2, "0")} ${suffix}`;
+};
+
+export const timeLabel = (value) => formatTime(value);
 
 export const timeSince = (value) => {
   if (!value) return "Inquiry date unknown";
@@ -120,7 +128,8 @@ export function weddingView(wedding) {
     initials: initials(client.name),
     weddingDate: wedding.wedding_date,
     invoiceSentAt: wedding.invoice_sent_at,
-    readyBy: timeLabel(wedding.ready_by),
+    readyBy: wedding.ready_by ? wedding.ready_by.slice(0, 5) : "",
+    readyByLabel: formatTime(wedding.ready_by),
     address: wedding.address || "",
     city: wedding.city || "",
     venue: wedding.venue || "",

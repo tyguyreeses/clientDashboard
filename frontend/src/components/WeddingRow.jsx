@@ -16,7 +16,7 @@ export function WeddingRow({ wedding, onSelect, onStatus }) {
       <div className="date-cell">
         <strong>{formatDate(wedding.weddingDate)}</strong>
         <small>
-          {wedding.readyBy} · {wedding.address}
+          {wedding.readyByLabel} · {wedding.address}
         </small>
       </div>
       <div className="trial-cell">
