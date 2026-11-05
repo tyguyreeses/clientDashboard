@@ -6,7 +6,10 @@ Terminal 1:
 
 ```bash
 .venv/bin/python -m pip install -e .
+# Destructive local reset: drops all tables, runs Alembic migrations, and seeds default pricing
 PYTHONPATH=src .venv/bin/python -m client_dashboard.scripts.init_db
+# Normal schema upgrades (preserves existing data)
+.venv/bin/alembic upgrade head
 PYTHONPATH=src .venv/bin/python -m uvicorn client_dashboard.main:app --reload --port 8000
 ```
 
@@ -177,7 +180,7 @@ Indexes:
 
 - `DATABASE_URL` overrides the database connection string.
 - If `DATABASE_URL` is not set, the app uses SQLite with `SQLITE_DB_PATH` or `data/client_dashboard.db`.
-- The schema initializer resets the configured database, creates the current tables, seeds default pricing, and verifies the expected columns and indexes. It is destructive and intended for development/test setup only.
+- Alembic manages incremental schema migrations. Run `.venv/bin/alembic upgrade head` to apply migrations while preserving data. The schema initializer resets the configured database, runs the migrations, seeds default pricing, and verifies the expected columns and indexes. It is destructive and intended for development/test setup only.
 
 ### Verify The Schema
 

@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
+from alembic import command
+from alembic.config import Config
 from sqlalchemy import inspect, select
 
 from client_dashboard import models  # noqa: F401
@@ -56,15 +59,20 @@ def _seed_default_pricing() -> None:
 def main() -> None:
     # Existing data may be discarded. Resetting guarantees that legacy
     # location and invoice-version columns are not carried into this schema.
+    with engine.begin() as connection:
+        connection.exec_driver_sql("DROP TABLE IF EXISTS alembic_version")
     models.Base.metadata.drop_all(bind=engine)
-    models.Base.metadata.create_all(bind=engine)
+    alembic_config = Config(str(Path(__file__).resolve().parents[3] / "alembic.ini"))
+    command.upgrade(alembic_config, "head")
     _seed_default_pricing()
 
     with engine.connect() as connection:
         connection.execute(select(1))
 
     inspector = inspect(engine)
-    existing_tables = tuple(inspector.get_table_names())
+    existing_tables = tuple(
+        table for table in inspector.get_table_names() if table != "alembic_version"
+    )
     missing_tables = sorted(set(EXPECTED_TABLES) - set(existing_tables))
     unexpected_tables = sorted(set(existing_tables) - set(EXPECTED_TABLES))
     assert not missing_tables, f"Missing tables: {missing_tables}"
