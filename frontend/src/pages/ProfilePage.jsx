@@ -19,7 +19,12 @@ import {
 } from "../utils";
 
 const TRIAL_STEPS = ["interested", "link_sent", "booked", "complete"];
-const TRIAL_PROGRESS_COLORS = ["var(--coral)", "#e6ba62", "#a6aa5a", "#4d9a6d"];
+const TRIAL_PROGRESS_COLORS = [
+  "var(--color-progress-red)",
+  "var(--color-progress-yellow)",
+  "var(--color-progress-light-green)",
+  "var(--color-progress-dark-green)",
+];
 
 function TrialBoard({ status, onChange }) {
   if (["not_interested", "cancelled"].includes(status)) return null;
@@ -145,6 +150,25 @@ export function ProfilePage({ wedding, onClose, onSaved }) {
       setDraft((current) => ({ ...current, bridalTrialStatus: value }));
       onSaved(weddingView(updatedWedding));
       await loadInvoiceData();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const unarchive = async () => {
+    setSaving(true);
+    setError("");
+    try {
+      const client = await json(`/clients/${draft.clientId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ archived: false }),
+      });
+      const refreshedWedding = await json(`/weddings/${draft.id}`);
+      const result = weddingView({ ...refreshedWedding, client });
+      setDraft(result);
+      onSaved(result);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -416,6 +440,13 @@ export function ProfilePage({ wedding, onClose, onSaved }) {
         </div>
         {editingSection === "additional" ? <label className="notes-label">Notes<textarea value={draft.notes || ""} onChange={(event) => update("notes", event.target.value)} /></label> : <Detail label="Notes" value={draft.notes} />}
       </div>
+      {draft.archived && (
+        <div className="profile-archive-action">
+          <button type="button" className="profile-secondary-action" onClick={unarchive} disabled={saving}>
+            {saving ? "Unarchiving…" : "Unarchive client"}
+          </button>
+        </div>
+      )}
       </div>
       </main>
     </div>
