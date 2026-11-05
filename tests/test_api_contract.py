@@ -33,7 +33,11 @@ def test_core_resource_responses_have_stable_shapes(client):
 
     wedding_data = client.post(
         "/weddings",
-        json={"client_id": client_data["id"], "wedding_date": "2026-10-10"},
+        json={
+            "client_id": client_data["id"],
+            "wedding_date": "2026-10-10",
+            "address": "123 Main Street",
+        },
     ).json()
     assert {"id", "client_id", "wedding_date", "status", "client", "party_members"} <= wedding_data.keys()
     assert wedding_data["client"]["id"] == client_data["id"]
@@ -49,5 +53,9 @@ def test_api_uses_expected_http_errors_for_invalid_requests(client):
     assert client.post("/clients", json={}).status_code == 422
     assert client.post(
         "/weddings",
-        json={"client_id": 999999, "wedding_date": "2026-10-10"},
+        json={
+            "client_id": 999999,
+            "wedding_date": "2026-10-10",
+            "address": "123 Main Street",
+        },
     ).status_code == 404

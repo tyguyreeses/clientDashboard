@@ -3,10 +3,9 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
-from decimal import Decimal
 from pathlib import Path
 
-from client_dashboard.models import Invoice, Payment
+from client_dashboard.models import Payment
 
 
 def test_client_crud(client, db_session_factory):
@@ -57,7 +56,7 @@ def test_wedding_party_payment_and_filters(client, db_session_factory):
         json={
             "client_id": client_id,
             "wedding_date": "2026-10-10",
-            "location": "Denver, CO",
+            "address": "123 Main Street",
             "miles_one_way": "24.50",
             "ready_by": "08:30:00",
             "status": 1,
@@ -128,119 +127,168 @@ def test_wedding_party_payment_and_filters(client, db_session_factory):
     assert len(wedding_detail.json()["party_members"]) == 1
 
 
-def test_pricing_versions_and_invoices(client, db_session_factory):
-    pricing_response = client.post(
-        "/pricing-versions",
-        json={
-            "name": "2026 baseline",
-            "bride_price": "250.00",
-            "trial_price": "100.00",
-            "bridesmaid_price": "125.00",
-            "flowergirl_price": "65.00",
-            "early_morning_fee": "50.00",
-            "assistant_fee": "150.00",
-            "assistant_bridesmaid_cut": "20.00",
-            "base_travel_fee": "30.00",
-            "travel_fee": "1.25",
-            "deposit_percentage": "50.00",
-            "travel_discount_percentage": "10.00",
-        },
-    )
-    assert pricing_response.status_code == 201
-    pricing_version_id = pricing_response.json()["id"]
+def _pricing_payload(name: str, **overrides):
+    payload = {
+        "name": name,
+        "bride_price": "120",
+        "trial_price": "120",
+        "bridesmaid_price": "90",
+        "flowergirl_price": "45",
+        "early_morning_fee": "40",
+        "assistant_fee": "40",
+        "assistant_bridesmaid_cut": "75",
+        "base_travel_fee": "25",
+        "travel_fee": "0.75",
+        "deposit_percentage": "50",
+        "travel_discount_percentage": "20",
+        "assistant_travel_fee_cut": "15",
+    }
+    payload.update(overrides)
+    return payload
 
-    pricing_get = client.get(f"/pricing-versions/{pricing_version_id}")
-    assert pricing_get.status_code == 200
-    assert pricing_get.json()["name"] == "2026 baseline"
 
-    client_id = client.post("/clients", json={"name": "Zoe Reed"}).json()["id"]
-    wedding_id = client.post(
-        "/weddings",
-        json={
-            "client_id": client_id,
-            "wedding_date": "2026-11-01",
-            "status": 2,
-        },
+def _invoice_fixture(client, *, pricing_name="Invoice pricing", pricing_overrides=None):
+    pricing_payload = _pricing_payload(pricing_name, **(pricing_overrides or {}))
+    pricing_id = client.post("/pricing-versions", json=pricing_payload).json()["id"]
+    client_id = client.post(
+        "/clients",
+        json={"name": "Invoice Client", "is_referral": True},
     ).json()["id"]
-
-    with db_session_factory() as session:
-        invoice = Invoice(
-            wedding_id=wedding_id,
-            version_number=1,
-            pricing_version_id=pricing_version_id,
-            services_total=Decimal("500.00"),
-            travel_total=Decimal("30.00"),
-            discount_total=Decimal("0.00"),
-            deposit_amount=Decimal("250.00"),
-            balance_due=Decimal("280.00"),
-            grand_total=Decimal("560.00"),
-        )
-        session.add(invoice)
-        session.commit()
-        invoice_id = invoice.id
-
-    invoice_get = client.get(f"/invoices/{invoice_id}")
-    assert invoice_get.status_code == 200
-    assert invoice_get.json()["version_number"] == 1
-    assert invoice_get.json()["pricing_version"]["id"] == pricing_version_id
-
-    wedding_invoice = client.get(f"/weddings/{wedding_id}/invoice")
-    assert wedding_invoice.status_code == 200
-    assert wedding_invoice.json()["id"] == invoice_id
-
-    invoice_list = client.get("/invoices")
-    assert invoice_list.status_code == 200
-    assert len(invoice_list.json()) == 1
-
-
-def test_invoice_generation_and_regeneration(client):
-    pricing_id = client.post(
-        "/pricing-versions",
-        json={
-            "name": "Invoice pricing",
-            "bride_price": "120",
-            "trial_price": "120",
-            "bridesmaid_price": "90",
-            "flowergirl_price": "45",
-            "early_morning_fee": "40",
-            "assistant_fee": "40",
-            "assistant_bridesmaid_cut": "75",
-            "base_travel_fee": "25",
-            "travel_fee": "0.75",
-            "deposit_percentage": "50",
-            "travel_discount_percentage": "20",
-            "assistant_travel_fee_cut": "15",
-        },
-    ).json()["id"]
-    client_id = client.post("/clients", json={"name": "Invoice Client", "is_referral": True}).json()["id"]
     wedding_id = client.post(
         "/weddings",
         json={
             "client_id": client_id,
             "wedding_date": "2026-10-10",
-            "location": "Salt Lake City",
+            "address": "123 Main Street",
+            "city": "Salt Lake City",
+            "venue": "The Garden Venue",
             "miles_one_way": "10",
             "ready_by": "09:00:00",
             "bridal_trial_status": "booked",
         },
     ).json()["id"]
     client.post(f"/weddings/{wedding_id}/party-members", json={"role": "B", "hairstyle": "U"})
-    client.post(f"/weddings/{wedding_id}/party-members", json={"role": "P", "hairstyle": "U", "assistant": True})
+    client.post(
+        f"/weddings/{wedding_id}/party-members",
+        json={"role": "P", "hairstyle": "U", "assistant": True},
+    )
+    return pricing_id, client_id, wedding_id
 
-    generated = client.post(f"/weddings/{wedding_id}/invoice", json={"pricing_version_id": pricing_id})
+
+def test_invoice_generation_message_and_assistant_receipt(client):
+    pricing_id, _, wedding_id = _invoice_fixture(client)
+
+    generated = client.post(
+        f"/weddings/{wedding_id}/invoice",
+        json={"pricing_version_id": pricing_id},
+    )
     assert generated.status_code == 201
-    body = generated.json()
-    assert body["invoice"]["grand_total"] == "449.50"
-    assert body["invoice"]["warnings"] == []
-    assert body["invoice"]["timing_details"]["start_time"] == "07:30"
+    invoice = generated.json()["invoice"]
 
-    receipt = client.get(f"/invoices/{body['invoice']['id']}/assistant-receipt")
+    assert invoice["grand_total"] == "449.50"
+    assert invoice["warnings"] == []
+    assert invoice["timing_details"]["start_time"] == "07:30"
+    assert "Invoice Client" in invoice["message_text"]
+    assert "123 Main Street" in invoice["message_text"]
+    assert "The Garden Venue" in invoice["message_text"]
+    assert "bridal trial" in invoice["message_text"].lower()
+    assert "business_takehome" not in invoice["message_text"]
+
+    receipt = client.get(f"/invoices/{invoice['id']}/assistant-receipt")
     assert receipt.status_code == 200
     assert receipt.json()["total_paid_to_assistant"] == "107.50"
 
-    unchanged = client.post(f"/weddings/{wedding_id}/invoice", json={"pricing_version_id": pricing_id})
-    assert unchanged.status_code == 200
-    assert unchanged.json()["created"] is False
+
+def test_invoice_overwrites_for_pricing_selection_and_has_no_version(client):
+    first_pricing, _, wedding_id = _invoice_fixture(client)
+    second_pricing = client.post(
+        "/pricing-versions",
+        json=_pricing_payload("Second pricing", bride_price="200"),
+    ).json()["id"]
+
+    first = client.post(
+        f"/weddings/{wedding_id}/invoice",
+        json={"pricing_version_id": first_pricing},
+    ).json()["invoice"]
+    second = client.post(
+        f"/weddings/{wedding_id}/invoice",
+        json={"pricing_version_id": second_pricing},
+    )
+    assert second.status_code == 200
+    updated = second.json()["invoice"]
+
+    assert updated["id"] == first["id"]
+    assert updated["pricing_version"]["id"] == second_pricing
+    assert "version_number" not in updated
+
+
+def test_invoice_updates_after_invoice_related_edit(client):
+    pricing_id, client_id, wedding_id = _invoice_fixture(client)
+    generated = client.post(
+        f"/weddings/{wedding_id}/invoice",
+        json={"pricing_version_id": pricing_id},
+    ).json()["invoice"]
+
+    updated_wedding = client.patch(
+        f"/weddings/{wedding_id}",
+        json={"miles_one_way": "20"},
+    )
+    assert updated_wedding.status_code == 200
+
+    updated_invoice = client.get(f"/weddings/{wedding_id}/invoice").json()
+    assert updated_invoice["id"] == generated["id"]
+    assert updated_invoice["travel_total"] != generated["travel_total"]
+
+    updated_client = client.patch(
+        f"/clients/{client_id}",
+        json={"name": "Updated Invoice Client"},
+    )
+    assert updated_client.status_code == 200
+    assert "Updated Invoice Client" in client.get(
+        f"/weddings/{wedding_id}/invoice"
+    ).json()["message_text"]
+
+
+def test_invalid_invoice_update_preserves_existing_invoice(client):
+    pricing_id, _, wedding_id = _invoice_fixture(client)
+    generated = client.post(
+        f"/weddings/{wedding_id}/invoice",
+        json={"pricing_version_id": pricing_id},
+    ).json()["invoice"]
+
+    edited = client.patch(f"/weddings/{wedding_id}", json={"address": ""})
+    assert edited.status_code == 200
+
+    unchanged = client.get(f"/weddings/{wedding_id}/invoice").json()
+    assert unchanged["id"] == generated["id"]
+    assert unchanged["calculation_hash"] == generated["calculation_hash"]
+    assert unchanged["message_text"] == generated["message_text"]
+
+
+def test_invoice_validation_reports_all_missing_required_fields(client):
+    client_id = client.post("/clients", json={"name": "Missing Fields"}).json()["id"]
+    wedding_id = client.post(
+        "/weddings",
+        json={
+            "client_id": client_id,
+            "wedding_date": "2026-12-01",
+            "address": "123 Main Street",
+        },
+    ).json()["id"]
+    pricing_id = client.post(
+        "/pricing-versions",
+        json=_pricing_payload("Validation pricing"),
+    ).json()["id"]
+
+    response = client.post(
+        f"/weddings/{wedding_id}/invoice",
+        json={"pricing_version_id": pricing_id},
+    )
+    assert response.status_code == 422
+    detail = response.json()["detail"]
+    assert "address" not in detail
+    assert "ready_by" in detail
+    assert "miles_one_way" in detail
 
 
 def test_invalid_values_are_rejected(client):
@@ -250,6 +298,7 @@ def test_invalid_values_are_rejected(client):
         json={
             "client_id": client_id,
             "wedding_date": "2026-12-01",
+            "address": "123 Main Street",
             "status": 1,
         },
     ).json()["id"]
@@ -304,6 +353,7 @@ def test_nonexistent_foreign_key_rejected(client):
         json={
             "client_id": 9999,
             "wedding_date": "2026-12-01",
+            "address": "123 Main Street",
             "status": 1,
         },
     )

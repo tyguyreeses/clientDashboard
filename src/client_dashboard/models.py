@@ -125,7 +125,9 @@ class Wedding(TimestampMixin, Base):
         nullable=False,
     )
     wedding_date: Mapped[date] = mapped_column(Date, nullable=False)
-    location: Mapped[str | None] = mapped_column(String(255))
+    address: Mapped[str] = mapped_column(String(255), nullable=False)
+    city: Mapped[str | None] = mapped_column(String(255))
+    venue: Mapped[str | None] = mapped_column(String(255))
     miles_one_way: Mapped[Decimal | None] = mapped_column(Numeric(8, 2))
     ready_by: Mapped[time | None] = mapped_column(Time)
     status: Mapped[int] = mapped_column(Integer, nullable=False, default=STATUS_INQUIRED)
@@ -244,13 +246,7 @@ class Invoice(TimestampMixin, Base):
     __tablename__ = "invoices"
     __table_args__ = (
         Index("ix_invoices_pricing_version_id", "pricing_version_id"),
-        Index(
-            "uq_invoices_wedding_id_version_number",
-            "wedding_id",
-            "version_number",
-            unique=True,
-        ),
-        CheckConstraint("version_number >= 1", name="ck_invoices_version_positive"),
+        Index("uq_invoices_wedding_id", "wedding_id", unique=True),
         CheckConstraint("services_total >= 0", name="ck_invoices_services_nonnegative"),
         CheckConstraint("travel_total >= 0", name="ck_invoices_travel_nonnegative"),
         CheckConstraint("discount_total >= 0", name="ck_invoices_discount_nonnegative"),
@@ -264,7 +260,6 @@ class Invoice(TimestampMixin, Base):
         ForeignKey("weddings.id"),
         nullable=False,
     )
-    version_number: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     pricing_version_id: Mapped[int] = mapped_column(
         ForeignKey("pricing_versions.id"),
         nullable=False,
@@ -280,6 +275,7 @@ class Invoice(TimestampMixin, Base):
     line_items: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     timing_details: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     warnings: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    message_text: Mapped[str] = mapped_column(Text, nullable=False, default="")
 
     wedding: Mapped[Wedding] = relationship(back_populates="invoices")
     pricing_version: Mapped[PricingVersion] = relationship(back_populates="invoices")

@@ -70,6 +70,43 @@ def _apply_updates(obj, data) -> None:
         setattr(obj, field, value)
 
 
+def _refresh_existing_invoice(session: Session, wedding: Wedding) -> str | None:
+    invoice = session.scalar(select(Invoice).where(Invoice.wedding_id == wedding.id))
+    if invoice is None:
+        return None
+    pricing = session.get(PricingVersion, invoice.pricing_version_id)
+    if pricing is None:
+        return "Pricing version not found"
+
+    from ..invoice import calculate_invoice
+
+    try:
+        calculation = calculate_invoice(wedding, wedding.client, pricing, wedding.party_members)
+    except ValueError as exc:
+        return str(exc)
+
+    invoice.services_total = calculation.services_total
+    invoice.travel_total = calculation.travel_total
+    invoice.discount_total = calculation.discount_total
+    invoice.deposit_amount = calculation.deposit_amount
+    invoice.balance_due = calculation.balance_due
+    invoice.grand_total = calculation.grand_total
+    invoice.calculation_hash = calculation.calculation_hash
+    invoice.calculation_snapshot = calculation.calculation_snapshot
+    invoice.line_items = calculation.line_items
+    invoice.timing_details = calculation.timing_details
+    invoice.warnings = calculation.warnings
+    invoice.message_text = calculation.message_text
+    session.flush()
+    if invoice.assistant_receipt is not None:
+        session.delete(invoice.assistant_receipt)
+        session.flush()
+    if calculation.assistant_receipt is not None:
+        session.add(AssistantReceipt(invoice_id=invoice.id, **calculation.assistant_receipt))
+    _commit(session)
+    return None
+
+
 def _wedding_query(
     session: Session,
     *,
@@ -127,13 +164,24 @@ def get_client(client_id: int, session: Session = Depends(get_db)) -> Client:
 @router.patch("/clients/{client_id}", response_model=ClientRead)
 def update_client(client_id: int, payload: ClientUpdate, session: Session = Depends(get_db)) -> Client:
     client = _get_or_404(session, Client, client_id, "Client not found")
+    updates = payload.model_dump(exclude_unset=True)
     _apply_updates(client, payload)
     _commit(session)
+    if not ({"name", "is_referral"} & updates.keys()):
+        session.refresh(client)
+        return client
+    weddings = session.scalars(
+        select(Wedding)
+        .options(selectinload(Wedding.client), selectinload(Wedding.party_members))
+        .where(Wedding.client_id == client.id)
+    ).all()
+    for wedding in weddings:
+        _refresh_existing_invoice(session, wedding)
     session.refresh(client)
     return client
 
 
-@router.delete("/clients/{client_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/clients/{client_id}", response_model=None, status_code=status.HTTP_204_NO_CONTENT)
 def delete_client(client_id: int, session: Session = Depends(get_db)) -> None:
     client = _get_or_404(session, Client, client_id, "Client not found")
     session.delete(client)
@@ -215,10 +263,17 @@ def update_wedding(wedding_id: int, payload: WeddingUpdate, session: Session = D
     for field, value in updates.items():
         setattr(wedding, field, value)
     _commit(session)
-    return _get_wedding_detail(session, wedding_id)
+    wedding = _get_wedding_detail(session, wedding_id)
+    invoice_warning = None
+    if {"wedding_date", "address", "city", "venue", "ready_by", "miles_one_way", "assistant", "bridal_trial_status"} & updates.keys():
+        invoice_warning = _refresh_existing_invoice(session, wedding)
+    result = _get_wedding_detail(session, wedding_id)
+    if invoice_warning:
+        result.invoice_warnings = [invoice_warning]
+    return result
 
 
-@router.delete("/weddings/{wedding_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/weddings/{wedding_id}", response_model=None, status_code=status.HTTP_204_NO_CONTENT)
 def delete_wedding(wedding_id: int, session: Session = Depends(get_db)) -> None:
     wedding = _get_or_404(session, Wedding, wedding_id, "Wedding not found")
     session.delete(wedding)
@@ -245,6 +300,7 @@ def create_party_member(
         wedding.assistant = True
     session.add(member)
     _commit(session)
+    _refresh_existing_invoice(session, _get_wedding_detail(session, wedding_id))
     session.refresh(member)
     return member
 
@@ -284,11 +340,12 @@ def update_party_member(
     if member.assistant:
         member.wedding.assistant = True
     _commit(session)
+    _refresh_existing_invoice(session, _get_wedding_detail(session, member.wedding_id))
     session.refresh(member)
     return member
 
 
-@router.delete("/party-members/{party_member_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/party-members/{party_member_id}", response_model=None, status_code=status.HTTP_204_NO_CONTENT)
 def delete_party_member(party_member_id: int, session: Session = Depends(get_db)) -> None:
     member = _get_or_404(session, WeddingPartyMember, party_member_id, "Party member not found")
     session.delete(member)
@@ -337,7 +394,7 @@ def update_pricing_version(
     return version
 
 
-@router.delete("/pricing-versions/{pricing_version_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/pricing-versions/{pricing_version_id}", response_model=None, status_code=status.HTTP_204_NO_CONTENT)
 def delete_pricing_version(pricing_version_id: int, session: Session = Depends(get_db)) -> None:
     version = _get_or_404(session, PricingVersion, pricing_version_id, "Pricing version not found")
     if session.scalar(select(Invoice.id).where(Invoice.pricing_version_id == pricing_version_id).limit(1)) is not None:
@@ -357,7 +414,7 @@ def list_invoices(
 ) -> list[Invoice]:
     stmt = (
         select(Invoice)
-        .order_by(desc(Invoice.wedding_id), desc(Invoice.version_number), desc(Invoice.id))
+        .order_by(desc(Invoice.wedding_id), desc(Invoice.id))
         .offset(offset)
         .limit(limit)
     )
@@ -381,12 +438,18 @@ def generate_wedding_invoice(
     session: Session = Depends(get_db),
 ) -> InvoiceGenerationResponse:
     wedding = _get_wedding_detail(session, wedding_id)
-    if not wedding.location or not wedding.location.strip():
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Missing required fields: location")
+    missing = []
+    if not wedding.address or not wedding.address.strip():
+        missing.append("address")
     if wedding.ready_by is None:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Missing required fields: ready_by")
+        missing.append("ready_by")
     if wedding.miles_one_way is None:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Missing required fields: miles_one_way")
+        missing.append("miles_one_way")
+    if missing:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Missing required fields: {', '.join(missing)}",
+        )
 
     if payload.pricing_version_id is None:
         pricing = session.scalars(select(PricingVersion).order_by(desc(PricingVersion.id)).limit(1)).first()
@@ -400,53 +463,37 @@ def generate_wedding_invoice(
     try:
         calculation = calculate_invoice(wedding, wedding.client, pricing, wedding.party_members)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
-    latest = session.scalars(
-        select(Invoice)
-        .where(Invoice.wedding_id == wedding_id)
-        .order_by(desc(Invoice.version_number), desc(Invoice.id))
-        .limit(1)
-    ).first()
-    if latest is not None and latest.calculation_hash == calculation.calculation_hash:
-        return InvoiceGenerationResponse(created=False, invoice=latest)
+    invoice = session.scalar(select(Invoice).where(Invoice.wedding_id == wedding_id))
+    created = invoice is None
+    if invoice is None:
+        invoice = Invoice(wedding_id=wedding.id)
+        session.add(invoice)
 
-    version_number = (latest.version_number + 1) if latest else 1
-    invoice = Invoice(
-        wedding_id=wedding.id,
-        version_number=version_number,
-        pricing_version_id=pricing.id,
-        services_total=calculation.services_total,
-        travel_total=calculation.travel_total,
-        discount_total=calculation.discount_total,
-        deposit_amount=calculation.deposit_amount,
-        balance_due=calculation.balance_due,
-        grand_total=calculation.grand_total,
-        calculation_hash=calculation.calculation_hash,
-        calculation_snapshot=calculation.calculation_snapshot,
-        line_items=calculation.line_items,
-        timing_details=calculation.timing_details,
-        warnings=calculation.warnings,
-    )
-    session.add(invoice)
+    invoice.pricing_version_id = pricing.id
+    invoice.services_total = calculation.services_total
+    invoice.travel_total = calculation.travel_total
+    invoice.discount_total = calculation.discount_total
+    invoice.deposit_amount = calculation.deposit_amount
+    invoice.balance_due = calculation.balance_due
+    invoice.grand_total = calculation.grand_total
+    invoice.calculation_hash = calculation.calculation_hash
+    invoice.calculation_snapshot = calculation.calculation_snapshot
+    invoice.line_items = calculation.line_items
+    invoice.timing_details = calculation.timing_details
+    invoice.warnings = calculation.warnings
+    invoice.message_text = calculation.message_text
     session.flush()
+    if invoice.assistant_receipt is not None:
+        session.delete(invoice.assistant_receipt)
+        session.flush()
     if calculation.assistant_receipt is not None:
-        receipt = calculation.assistant_receipt
-        session.add(
-            AssistantReceipt(
-                invoice_id=invoice.id,
-                assistant_travel=receipt["assistant_travel"],
-                assistant_service_pay=receipt["assistant_service_pay"],
-                assisted_bridesmaid_count=receipt["assisted_bridesmaid_count"],
-                assisted_bridesmaid_pay=receipt["assisted_bridesmaid_pay"],
-                total_paid_to_assistant=receipt["total_paid_to_assistant"],
-                business_takehome=receipt["business_takehome"],
-            )
-        )
+        session.add(AssistantReceipt(invoice_id=invoice.id, **calculation.assistant_receipt))
     _commit(session)
     session.refresh(invoice)
-    response.status_code = status.HTTP_201_CREATED
-    return InvoiceGenerationResponse(created=True, invoice=invoice)
+    response.status_code = status.HTTP_201_CREATED if created else status.HTTP_200_OK
+    return InvoiceGenerationResponse(created=created, invoice=invoice)
 
 
 @router.get("/weddings/{wedding_id}/invoice", response_model=InvoiceRead)
@@ -456,7 +503,6 @@ def get_wedding_invoice(wedding_id: int, session: Session = Depends(get_db)) -> 
         select(Invoice)
         .options(selectinload(Invoice.pricing_version))
         .where(Invoice.wedding_id == wedding_id)
-        .order_by(desc(Invoice.version_number), desc(Invoice.id))
         .limit(1)
     )
     invoice = session.scalars(stmt).first()
@@ -514,7 +560,7 @@ def update_payment(payment_id: int, payload: PaymentUpdate, session: Session = D
     return payment
 
 
-@router.delete("/payments/{payment_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/payments/{payment_id}", response_model=None, status_code=status.HTTP_204_NO_CONTENT)
 def delete_payment(payment_id: int, session: Session = Depends(get_db)) -> None:
     payment = _get_or_404(session, Payment, payment_id, "Payment not found")
     session.delete(payment)

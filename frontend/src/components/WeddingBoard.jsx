@@ -16,7 +16,7 @@ function WeddingCard({ wedding, onSelect, onDragStart, onDragEnd }) {
     >
       <div className="kanban-card-top"><strong>{wedding.name}</strong><small>{timeSince(wedding.inquiryDate)}</small></div>
       <span>{formatDate(wedding.weddingDate)}</span>
-      <span>{wedding.people || 0} people · {wedding.location}</span>
+      <span>{wedding.people || 0} people · {wedding.address}</span>
     </article>
   );
 }

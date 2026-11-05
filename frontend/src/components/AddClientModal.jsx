@@ -13,7 +13,9 @@ export function AddClientModal({ onClose, onCreated }) {
     inquiry_date: new Date().toISOString().slice(0, 10),
     notes: "",
     wedding_date: "",
-    location: "",
+    address: "",
+    city: "",
+    venue: "",
     ready_by: "",
     party_details: "1",
     makeup: "",
@@ -57,7 +59,9 @@ export function AddClientModal({ onClose, onCreated }) {
         body: JSON.stringify({
           client_id: client.id,
           wedding_date: form.wedding_date,
-          location: form.location || null,
+          address: form.address,
+          city: form.city || null,
+          venue: form.venue || null,
           ready_by: form.ready_by || null,
           hair_service_count: Number(form.party_details),
           status: 1,
@@ -116,10 +120,20 @@ export function AddClientModal({ onClose, onCreated }) {
             onChange={(value) => update("wedding_date", value)}
           />
           <Editable
-            label="Venue location / full address *"
-            value={form.location}
+            label="Address *"
+            value={form.address}
             required
-            onChange={(value) => update("location", value)}
+            onChange={(value) => update("address", value)}
+          />
+          <Editable
+            label="City"
+            value={form.city}
+            onChange={(value) => update("city", value)}
+          />
+          <Editable
+            label="Venue"
+            value={form.venue}
+            onChange={(value) => update("venue", value)}
           />
           <Editable
             label="People needing hair done *"

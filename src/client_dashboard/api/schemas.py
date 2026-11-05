@@ -70,7 +70,9 @@ class ClientSummary(ClientRead):
 class WeddingBase(BaseModel):
     client_id: int
     wedding_date: date
-    location: str | None = Field(default=None, max_length=255)
+    address: str = Field(min_length=1, max_length=255)
+    city: str | None = Field(default=None, max_length=255)
+    venue: str | None = Field(default=None, max_length=255)
     miles_one_way: Decimal | None = Field(default=None, ge=0, max_digits=8, decimal_places=2)
     ready_by: time | None = None
     status: WeddingStatus = 1
@@ -86,7 +88,9 @@ class WeddingCreate(WeddingBase):
 class WeddingUpdate(BaseModel):
     client_id: int | None = None
     wedding_date: date | None = None
-    location: str | None = Field(default=None, max_length=255)
+    address: str | None = Field(default=None, max_length=255)
+    city: str | None = Field(default=None, max_length=255)
+    venue: str | None = Field(default=None, max_length=255)
     miles_one_way: Decimal | None = Field(default=None, ge=0, max_digits=8, decimal_places=2)
     ready_by: time | None = None
     status: WeddingStatus | None = None
@@ -125,7 +129,9 @@ class WeddingRead(TimestampRead):
     id: int
     client_id: int
     wedding_date: date
-    location: str | None
+    address: str
+    city: str | None
+    venue: str | None
     miles_one_way: Decimal | None
     ready_by: time | None
     status: WeddingStatus
@@ -134,13 +140,16 @@ class WeddingRead(TimestampRead):
     assistant: bool
     client: ClientSummary | None = None
     party_members: list[WeddingPartyMemberRead] = Field(default_factory=list)
+    invoice_warnings: list[str] = Field(default_factory=list)
 
 
 class WeddingListItem(TimestampRead):
     id: int
     client_id: int
     wedding_date: date
-    location: str | None
+    address: str
+    city: str | None
+    venue: str | None
     miles_one_way: Decimal | None
     party_members: list[WeddingPartyMemberRead] = Field(default_factory=list)
     ready_by: time | None
@@ -200,7 +209,6 @@ class PricingVersionRead(PricingVersionBase, TimestampRead):
 
 class InvoiceBase(ORMModel):
     wedding_id: int
-    version_number: int
     pricing_version_id: int
     services_total: Decimal
     travel_total: Decimal
@@ -213,6 +221,7 @@ class InvoiceBase(ORMModel):
     line_items: list[dict[str, Any]]
     timing_details: dict[str, Any]
     warnings: list[str]
+    message_text: str
 
 
 class InvoiceRead(InvoiceBase, TimestampRead):

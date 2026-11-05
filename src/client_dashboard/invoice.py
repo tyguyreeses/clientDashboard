@@ -67,6 +67,7 @@ class InvoiceCalculation:
     calculation_snapshot: dict[str, Any]
     calculation_hash: str
     assistant_receipt: dict[str, Any] | None
+    message_text: str
 
 
 def calculate_invoice(
@@ -75,6 +76,9 @@ def calculate_invoice(
     pricing: PricingVersion,
     members: list[WeddingPartyMember],
 ) -> InvoiceCalculation:
+    if not wedding.address or not wedding.address.strip():
+        raise ValueError("Missing required fields: address")
+
     warnings: list[str] = []
     roles = {member.role for member in members}
     if WeddingPartyMember.ROLE_BRIDE not in roles:
@@ -206,7 +210,9 @@ def calculate_invoice(
         "wedding": {
             "id": wedding.id,
             "wedding_date": wedding.wedding_date.isoformat(),
-            "location": wedding.location,
+            "address": wedding.address,
+            "city": wedding.city,
+            "venue": wedding.venue,
             "miles_one_way": decimal_string(wedding.miles_one_way),
             "ready_by": _time_string(wedding.ready_by),
             "assistant": wedding.assistant,
@@ -246,6 +252,42 @@ def calculate_invoice(
             "business_takehome": decimal_string(grand_total - assistant_total),
         }
 
+    message_lines = [
+        f"Invoice for {client.name}",
+        f"Wedding date: {wedding.wedding_date.isoformat()}",
+    ]
+    if wedding.city:
+        message_lines.append(f"City: {wedding.city}")
+    if wedding.venue:
+        message_lines.append(f"Venue: {wedding.venue}")
+    message_lines.extend([
+        f"Address: {wedding.address}",
+        f"Ready by: {_time_string(wedding.ready_by)}",
+        f"We will start at {_time_string(start_time)} and expect approximately {service_minutes} minutes of service.",
+        "Service durations: "
+        f"bride {pricing.bride_duration_minutes} min, "
+        f"bridal party updo {pricing.bridesmaid_updo_duration_minutes} min, "
+        f"bridal party down {pricing.bridesmaid_down_duration_minutes} min, "
+        f"flower girl {pricing.flowergirl_duration_minutes} min.",
+    ])
+    message_lines.extend(
+        f"{item['description']}: {item['quantity']} × ${item['unit_price']} = ${item['total']}"
+        for item in line_items
+        if item["description"] != "Referral travel discount"
+    )
+    if discount_total:
+        message_lines.append(
+            f"Referral travel discount (you save ${decimal_string(discount_total)} "
+            f"with a {decimal_string(pricing.travel_discount_percentage)}% discount applied)"
+        )
+    message_lines.extend([
+        f"Total: ${decimal_string(grand_total)}",
+        f"Non-refundable deposit: ${decimal_string(deposit_amount)}",
+        f"Remaining balance: ${decimal_string(balance_due)}",
+        f"Balance due date: {wedding.wedding_date.isoformat()}",
+    ])
+    message_text = "\n".join(message_lines)
+
     return InvoiceCalculation(
         services_total=services_total,
         travel_total=travel_total,
@@ -259,4 +301,5 @@ def calculate_invoice(
         calculation_snapshot=snapshot,
         calculation_hash=calculation_hash,
         assistant_receipt=receipt,
+        message_text=message_text,
     )

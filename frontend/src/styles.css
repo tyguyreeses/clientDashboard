@@ -1544,3 +1544,16 @@ nav small {
     display: block;
   }
 }
+
+.invoice-section { border-top: 3px solid var(--mint); }
+.invoice-action { margin-right: 10px; }
+.invoice-controls { display: flex; align-items: end; justify-content: space-between; gap: 18px; margin: 18px 0; }
+.invoice-controls label { display: grid; gap: 6px; color: var(--muted); font-size: 12px; font-weight: 600; }
+.invoice-controls select { min-width: 190px; border: 1px solid var(--line); border-radius: 8px; padding: 9px; background: white; color: var(--ink); }
+.invoice-warnings { border: 1px solid #e4a24f; background: #fff6dd; color: #7d5420; border-radius: 10px; padding: 12px 14px; margin: 15px 0; line-height: 1.6; }
+.invoice-meta, .invoice-balance { display: flex; flex-wrap: wrap; gap: 18px; color: var(--muted); font-size: 12px; margin: 14px 0; }
+.invoice-lines { border-top: 1px solid var(--line); }
+.invoice-line, .invoice-total-row { display: flex; justify-content: space-between; gap: 16px; padding: 11px 0; border-bottom: 1px solid var(--line); }
+.invoice-total-row { font-size: 18px; color: var(--ink); }
+.assistant-receipt { margin-top: 22px; padding: 14px; border-radius: 10px; background: var(--lilac); line-height: 1.7; }
+.assistant-receipt h3 { margin: 0 0 6px; }

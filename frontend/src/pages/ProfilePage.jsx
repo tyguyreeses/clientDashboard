@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   BooleanField,
   Detail,
@@ -38,13 +38,78 @@ function TrialBoard({ status, onChange }) {
   );
 }
 
+function InvoiceSummary({ invoice, invoiceWarnings, assistantReceipt, pricingVersions, invoiceLoading, copied, onGenerate, onCopy }) {
+  if (!invoice) {
+    return <section className="profile-section invoice-section"><div className="profile-section-title"><span className="section-number mint-number">03</span><div><p className="eyebrow">Billing</p><h2>Invoice</h2></div></div><p className="muted">No invoice has been generated yet.</p><button className="profile-save" onClick={() => onGenerate()} disabled={invoiceLoading}>Generate invoice</button></section>;
+  }
+  return <section className="profile-section invoice-section">
+    <div className="profile-section-title"><span className="section-number mint-number">03</span><div><p className="eyebrow">Billing</p><h2>Invoice summary</h2></div><button className="profile-save" onClick={() => onGenerate(invoice.pricing_version_id)} disabled={invoiceLoading}>{invoiceLoading ? "Generating…" : "Regenerate invoice"}</button></div>
+    <div className="invoice-controls"><label>Pricing version<select value={invoice.pricing_version_id} disabled={invoiceLoading} onChange={(event) => onGenerate(Number(event.target.value))}>{pricingVersions.map((version) => <option key={version.id} value={version.id}>{version.name}</option>)}</select></label><button className="profile-save" onClick={onCopy}>{copied ? "Copied" : "Copy invoice message"}</button></div>
+    {(invoiceWarnings?.length > 0 || invoice.warnings?.length > 0) && <div className="invoice-warnings"><strong>Invoice warnings</strong>{[...(invoiceWarnings || []), ...(invoice.warnings || [])].map((warning, index) => <div key={`${warning}-${index}`}>{warning}</div>)}</div>}
+    <div className="invoice-meta"><span>Ready by {invoice.timing_details?.ready_by || "—"}</span><span>Start at {invoice.timing_details?.start_time || "—"}</span><span>{invoice.timing_details?.service_minutes || 0} minutes</span></div>
+    <div className="invoice-lines">{invoice.line_items.map((item, index) => <div className="invoice-line" key={`${item.description}-${index}`}><span>{item.description} × {item.quantity}</span><strong>${item.total}</strong></div>)}</div>
+    <div className="invoice-total-row"><span>Total</span><strong>${invoice.grand_total}</strong></div>
+    <div className="invoice-balance"><span>Non-refundable deposit: ${invoice.deposit_amount}</span><span>Remaining balance: ${invoice.balance_due}</span></div>
+    {assistantReceipt && <div className="assistant-receipt"><h3>Assistant receipt</h3><div>Total paid to assistant: ${assistantReceipt.total_paid_to_assistant}</div><div>Assisted bridal-party members: {assistantReceipt.assisted_bridesmaid_count}</div></div>}
+  </section>;
+}
+
 export function ProfilePage({ wedding, onClose, onSaved }) {
   const [draft, setDraft] = useState(wedding);
   const [editingSection, setEditingSection] = useState(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [invoice, setInvoice] = useState(null);
+  const [assistantReceipt, setAssistantReceipt] = useState(null);
+  const [pricingVersions, setPricingVersions] = useState([]);
+  const [invoiceLoading, setInvoiceLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [invoiceWarnings, setInvoiceWarnings] = useState([]);
   const update = (field, value) =>
     setDraft((item) => ({ ...item, [field]: value }));
+  const loadInvoiceData = async () => {
+    try {
+      const [currentInvoice, versions] = await Promise.all([
+        json(`/weddings/${wedding.id}/invoice`).catch((err) => {
+          if (err.status === 404) return null;
+          throw err;
+        }),
+        json("/pricing-versions"),
+      ]);
+      setInvoice(currentInvoice);
+      setAssistantReceipt(currentInvoice ? await json(`/invoices/${currentInvoice.id}/assistant-receipt`).catch(() => null) : null);
+      setPricingVersions(versions);
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  useEffect(() => { loadInvoiceData(); }, [wedding.id]);
+
+  const generateInvoice = async (pricingVersionId = invoice?.pricing_version_id) => {
+    setInvoiceLoading(true);
+    setError("");
+    try {
+      const result = await json(`/weddings/${wedding.id}/invoice`, {
+        method: "POST",
+        body: JSON.stringify({ pricing_version_id: pricingVersionId || null }),
+      });
+      setInvoice(result.invoice);
+      setAssistantReceipt(await json(`/invoices/${result.invoice.id}/assistant-receipt`).catch(() => null));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setInvoiceLoading(false);
+    }
+  };
+
+  const copyInvoiceMessage = async () => {
+    if (!invoice?.message_text) return;
+    await navigator.clipboard.writeText(invoice.message_text);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1800);
+  };
+
   const requestClose = () => {
     if (editingSection && !window.confirm("Current changes will be lost. Close without saving?")) return;
     onClose();
@@ -69,6 +134,7 @@ export function ProfilePage({ wedding, onClose, onSaved }) {
             recommendations_if_unavailable:
               draft.recommendationsIfUnavailable,
             referral_name: draft.referralName || null,
+            is_referral: Boolean(draft.isReferral),
             notes: draft.notes || null,
           }),
         }),
@@ -76,8 +142,11 @@ export function ProfilePage({ wedding, onClose, onSaved }) {
           method: "PATCH",
           body: JSON.stringify({
             wedding_date: draft.weddingDate,
-            location: draft.location || null,
-            ready_by: draft.readyBy || null,
+            address: draft.address || "",
+            city: draft.city || null,
+            venue: draft.venue || null,
+            miles_one_way: draft.miles ?? null,
+            ready_by: draft.readyBy === "Time TBD" ? null : (draft.readyBy || null),
             status: Number(draft.status),
             bridal_trial_status: draft.bridalTrialStatus,
           }),
@@ -97,6 +166,8 @@ export function ProfilePage({ wedding, onClose, onSaved }) {
         ),
       );
       const refreshedWedding = await json(`/weddings/${draft.id}`);
+      setInvoiceWarnings(updatedWedding.invoice_warnings || []);
+      await loadInvoiceData();
       const result = weddingView({ ...refreshedWedding, client });
       onSaved(result);
       setDraft(result);
@@ -154,6 +225,9 @@ export function ProfilePage({ wedding, onClose, onSaved }) {
           {editingSection !== "header" && <p>Inquiry: {formatDate(draft.inquiryDate)}</p>}
         </div>
         <div className="profile-actions">
+          <button className="profile-save invoice-action" onClick={() => generateInvoice()} disabled={invoiceLoading}>
+            {invoiceLoading ? "Generating…" : invoice ? "Regenerate invoice" : "Generate invoice"}
+          </button>
           {editingSection === "header" ? (
             <>
               <button className="profile-save" onClick={save} disabled={saving}>{saving ? "Saving…" : "Save"}</button>
@@ -174,8 +248,14 @@ export function ProfilePage({ wedding, onClose, onSaved }) {
             <Editable label="Wedding date" type="date" value={draft.weddingDate} onChange={(value) => update("weddingDate", value)} />
           ) : <Detail label="Wedding date" value={formatDate(draft.weddingDate)} />}
           {editingSection === "wedding" ? (
-            <Editable label="Location" value={draft.location === "Location TBD" ? "" : draft.location} onChange={(value) => update("location", value)} />
-          ) : <Detail label="Location" value={draft.location} />}
+            <Editable label="Address" value={draft.address} onChange={(value) => update("address", value)} required />
+          ) : <Detail label="Address" value={draft.address} />}
+          {editingSection === "wedding" ? (
+            <Editable label="City" value={draft.city} onChange={(value) => update("city", value)} />
+          ) : <Detail label="City" value={draft.city} />}
+          {editingSection === "wedding" ? (
+            <Editable label="Venue" value={draft.venue} onChange={(value) => update("venue", value)} />
+          ) : <Detail label="Venue" value={draft.venue} />}
           {editingSection === "wedding" ? (
             <Editable label="Ready-by time" type="time" step={15 * 60} min="01:00" max="12:00" value={draft.readyBy} onChange={(value) => update("readyBy", value)} />
           ) : <Detail label="Ready by" value={draft.readyBy} />}
@@ -237,6 +317,17 @@ export function ProfilePage({ wedding, onClose, onSaved }) {
         </div>
       </section>
 
+      <InvoiceSummary
+        invoice={invoice}
+        invoiceWarnings={invoiceWarnings}
+        assistantReceipt={assistantReceipt}
+        pricingVersions={pricingVersions}
+        invoiceLoading={invoiceLoading}
+        copied={copied}
+        onGenerate={generateInvoice}
+        onCopy={copyInvoiceMessage}
+      />
+
       <section className="profile-section">
         <div className="profile-section-title">
           <span className="section-number peach-number">02</span>
@@ -247,6 +338,7 @@ export function ProfilePage({ wedding, onClose, onSaved }) {
           {editingSection === "additional" ? <Editable label="Source" value={draft.source} onChange={(value) => update("source", value)} /> : <Detail label="Source" value={draft.source} />}
           {editingSection === "additional" ? <Editable label="Social media" value={draft.socialMedia} onChange={(value) => update("socialMedia", value)} /> : <Detail label="Social media" value={draft.socialMedia} />}
           {editingSection === "additional" ? <Editable label="Referral name" value={draft.referralName} onChange={(value) => update("referralName", value)} /> : <Detail label="Referral name" value={draft.referralName} />}
+          {editingSection === "additional" ? <BooleanField label="Referral discount" value={draft.isReferral} onChange={(value) => update("isReferral", value)} /> : <Detail label="Referral discount" value={draft.isReferral ? "Yes" : "No"} />}
           {editingSection === "additional" ? (
             <SelectField
               label="Planning stage"

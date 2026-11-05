@@ -153,7 +153,7 @@ export function ClientDetails({ client, weddings, onSaved, onArchived }) {
             <div className="related-wedding" key={wedding.id}>
               <span>
                 <strong>{formatDate(wedding.weddingDate)}</strong>
-                <small>{wedding.location}</small>
+                <small>{wedding.address}</small>
               </span>
               <span className={`trial-pill ${STATUS[wedding.status].tone}`}>
                 {STATUS[wedding.status].label}

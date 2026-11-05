@@ -118,6 +118,7 @@ export function App() {
                       recommendations_if_unavailable:
                         item.recommendationsIfUnavailable,
                       referral_name: item.referralName,
+                      is_referral: item.isReferral,
                       notes: item.notes,
                     }
                   : old,

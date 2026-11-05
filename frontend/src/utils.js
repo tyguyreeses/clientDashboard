@@ -40,7 +40,9 @@ export const json = async (path, options = {}) => {
   });
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
-    throw new Error(body.detail || `Request failed (${response.status})`);
+    const error = new Error(body.detail || `Request failed (${response.status})`);
+    error.status = response.status;
+    throw error;
   }
   return response.status === 204 ? null : response.json();
 };
@@ -110,12 +112,15 @@ export function weddingView(wedding) {
     makeupInterest: client.makeup_interest,
     recommendationsIfUnavailable: client.recommendations_if_unavailable,
     referralName: client.referral_name || "",
+    isReferral: Boolean(client.is_referral),
     notes: client.notes || "",
     initials: initials(client.name),
     weddingDate: wedding.wedding_date,
     invoiceSentAt: wedding.invoice_sent_at,
     readyBy: timeLabel(wedding.ready_by),
-    location: wedding.location || "Location TBD",
+    address: wedding.address || "",
+    city: wedding.city || "",
+    venue: wedding.venue || "",
     miles: wedding.miles_one_way,
     partyMembers: wedding.party_members || [],
     people: (wedding.party_members || []).length,
