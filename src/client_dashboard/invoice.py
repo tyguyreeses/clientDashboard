@@ -131,12 +131,8 @@ def calculate_invoice(
     bride_total = money(pricing.bride_price * bride_count)
     party_total = money(pricing.bridesmaid_price * party_count)
     flowergirl_total = money(pricing.flowergirl_price * flowergirl_count)
+    # Bridal trials are charged separately and are not part of this invoice.
     trial_total = ZERO
-    if wedding.bridal_trial_status not in (
-        Wedding.BRIDAL_TRIAL_NOT_INTERESTED,
-        Wedding.BRIDAL_TRIAL_CANCELLED,
-    ):
-        trial_total = money(pricing.trial_price)
 
     line_items: list[dict[str, Any]] = []
     if bride_count:
@@ -145,10 +141,7 @@ def calculate_invoice(
         line_items.append(_line("Bridal party", party_count, pricing.bridesmaid_price, party_total))
     if flowergirl_count:
         line_items.append(_line("Flower girl", flowergirl_count, pricing.flowergirl_price, flowergirl_total))
-    if trial_total:
-        line_items.append(_line("Bridal trial", 1, pricing.trial_price, trial_total))
-
-    services_total = money(bride_total + party_total + flowergirl_total + trial_total)
+    services_total = money(bride_total + party_total + flowergirl_total)
 
     travel_total = ZERO
     assistant_travel = ZERO
@@ -192,7 +185,8 @@ def calculate_invoice(
         line_items.append(_line(referral_text, 1, -discount_total, -discount_total, "discount"))
 
     grand_total = money(services_total + travel_total + additional_fees - discount_total)
-    deposit_amount = money(grand_total * pricing.deposit_percentage / Decimal("100"))
+    # The deposit is based on hair services only, not travel or other fees.
+    deposit_amount = money(services_total * pricing.deposit_percentage / Decimal("100"))
     balance_due = money(grand_total - deposit_amount)
 
     timing_details = {
@@ -291,6 +285,12 @@ def calculate_invoice(
         "* I also plan to have everyone done 15 minutes before the time I’m told. "
         "Craziness kicks in and there’s always last minute things bridal groups are forgetting!",
     ])
+    if wedding.bridal_trial_status not in (
+        Wedding.BRIDAL_TRIAL_NOT_INTERESTED,
+        Wedding.BRIDAL_TRIAL_CANCELLED,
+    ):
+        message_lines.append("Bridal trial: charged separately")
+
     message_lines.append("\nHair:")
     message_lines.extend(
         f" - {item['description']}: {item['quantity']} × ${item['unit_price']} = ${item['total']}"

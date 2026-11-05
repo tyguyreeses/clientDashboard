@@ -698,17 +698,21 @@ nav small {
   cursor: pointer;
   font: inherit;
   margin-left: 0;
-  color: #a66e65;
-  font-size: 10px;
-  background: rgba(255, 255, 255, 0.45);
-  padding: 7px 10px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  background: var(--coral);
+  padding: 9px 14px;
   border-radius: 20px;
+  box-shadow: 0 2px 5px rgba(166, 110, 101, 0.18);
 }
+.profile-save:hover { background: #bd7468; }
 .profile-cancel {
-  color: var(--muted);
-  background: rgba(255, 255, 255, 0.45);
-  padding: 7px 10px;
+  color: var(--ink);
+  background: #eee3dc;
+  box-shadow: none;
 }
+.profile-cancel:hover { background: #e2d4cc; }
 .profile-name-input {
   width: 100%;
   border: 0;
@@ -1019,6 +1023,9 @@ nav small {
   padding: 31px 0;
   border-bottom: 1px solid var(--line);
 }
+.unified-profile-section { padding: 0; }
+.unified-profile-section > .profile-subsection { padding: 31px 0; border-bottom: 1px solid var(--line); }
+.unified-profile-section > .profile-subsection:last-child { border-bottom: 0; }
 .profile-section-title {
   display: flex;
   align-items: center;
@@ -1573,8 +1580,9 @@ nav small {
   }
 }
 
-.invoice-section { border-top: 3px solid var(--mint); }
+.invoice-section { border-top: 0; }
 .invoice-action { margin-right: 10px; }
+.invoice-copy-action { display: flex; justify-content: center; margin-top: 24px; }
 .invoice-controls { display: flex; align-items: end; justify-content: space-between; gap: 18px; margin: 18px 0; }
 .invoice-controls label { display: grid; gap: 6px; color: var(--muted); font-size: 12px; font-weight: 600; }
 .invoice-controls select { min-width: 190px; border: 1px solid var(--line); border-radius: 8px; padding: 9px; background: white; color: var(--ink); }

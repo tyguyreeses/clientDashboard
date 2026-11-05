@@ -47,11 +47,11 @@ function InvoiceSummary({ wedding, invoice, invoiceWarnings, assistantReceipt, p
   const feeItems = invoice?.line_items?.filter(isFee) || [];
   const amount = (value) => String(value).startsWith("-") ? `-$${String(value).slice(1)}` : `$${value}`;
   if (!invoice) {
-    return <section className="profile-section invoice-section"><div className="profile-section-title"><span className="section-number mint-number">03</span><div><p className="eyebrow">Billing</p><h2>Invoice</h2></div></div><p className="muted">No invoice has been generated yet.</p><button className="profile-save" onClick={() => onGenerate()} disabled={invoiceLoading}>Generate invoice</button></section>;
+    return <section className="profile-subsection invoice-section"><div className="profile-section-title"><div><h2>Invoice</h2></div></div><p className="muted">No invoice has been generated yet.</p><button className="profile-save" onClick={() => onGenerate()} disabled={invoiceLoading}>Generate invoice</button></section>;
   }
-  return <section className="profile-section invoice-section">
-    <div className="profile-section-title"><span className="section-number mint-number">03</span><div><p className="eyebrow">Billing</p><h2>Invoice summary</h2></div><button className="profile-save" onClick={() => onGenerate(invoice.pricing_version_id)} disabled={invoiceLoading}>{invoiceLoading ? "Generating…" : "Regenerate invoice"}</button></div>
-    <div className="invoice-controls"><label>Pricing version<select value={invoice.pricing_version_id} disabled={invoiceLoading} onChange={(event) => onGenerate(Number(event.target.value))}>{pricingVersions.map((version) => <option key={version.id} value={version.id}>{version.name}</option>)}</select></label><button className="profile-save" onClick={onCopy}>{copied ? "Copied" : "Copy invoice message"}</button></div>
+  return <section className="profile-subsection invoice-section">
+    <div className="profile-section-title"><div><h2>Invoice summary</h2></div><button className="profile-save" onClick={() => onGenerate(invoice.pricing_version_id)} disabled={invoiceLoading}>{invoiceLoading ? "Generating…" : "Regenerate invoice"}</button></div>
+    <div className="invoice-controls"><label>Pricing version<select value={invoice.pricing_version_id} disabled={invoiceLoading} onChange={(event) => onGenerate(Number(event.target.value))}>{pricingVersions.map((version) => <option key={version.id} value={version.id}>{version.name}</option>)}</select></label></div>
     {(invoiceWarnings?.length > 0 || invoice.warnings?.length > 0) && <div className="invoice-warnings"><strong>Invoice warnings</strong>{[...(invoiceWarnings || []), ...(invoice.warnings || [])].map((warning, index) => <div key={`${warning}-${index}`}>{warning}</div>)}</div>}
     <div className="invoice-schedule"><div><small>Start at</small><strong>{formatTime(invoice.timing_details?.start_time)}</strong></div><div><small>Ready by</small><strong>{formatTime(invoice.timing_details?.ready_by)}</strong></div><div><small>Service time</small><strong>{invoice.timing_details?.service_minutes || 0} min</strong></div></div>
     <div className="invoice-lines">
@@ -62,6 +62,7 @@ function InvoiceSummary({ wedding, invoice, invoiceWarnings, assistantReceipt, p
     <div className="invoice-total-row"><span>Total</span><strong>${invoice.grand_total}</strong></div>
     <div className="invoice-financials"><div><small>Non-refundable deposit</small><strong>${invoice.deposit_amount}</strong></div><div><small>Remaining balance</small><strong>${invoice.balance_due}</strong></div><div><small>Balance due date</small><strong>{formatDate(invoice.timing_details?.balance_due_date || wedding.weddingDate)}</strong></div></div>
     {assistantReceipt && <div className="assistant-receipt"><h3>Assistant receipt</h3><div>Total paid to assistant: ${assistantReceipt.total_paid_to_assistant}</div><div>Assisted bridal-party members: {assistantReceipt.assisted_bridesmaid_count}</div></div>}
+    <div className="invoice-copy-action"><button className="profile-save" onClick={onCopy}>{copied ? "Copied" : "Copy invoice message"}</button></div>
   </section>;
 }
 
@@ -281,10 +282,10 @@ export function ProfilePage({ wedding, onClose, onSaved }) {
         </div>
       </div>
 
-      <section className="profile-section trial-section">
+      <div className="profile-section unified-profile-section">
+      <div className="profile-subsection trial-section">
         <div className="profile-section-title">
-          <span className="section-number lilac-number">01</span>
-          <div><p className="eyebrow">Details</p><h2>Wedding details</h2></div>
+          <div><h2>Wedding details</h2></div>
           {editingSection === "wedding" ? <div className="section-actions"><button className="profile-save" onClick={save} disabled={saving}>{saving ? "Saving…" : "Save"}</button><button className="profile-cancel" onClick={() => { setDraft(wedding); setEditingSection(null); }}>Cancel</button></div> : <button className="profile-save" onClick={() => setEditingSection("wedding")}>Edit</button>}
         </div>
         <div className="detail-grid">
@@ -362,7 +363,7 @@ export function ProfilePage({ wedding, onClose, onSaved }) {
           ))}
           {!draft.partyMembers?.length && <p className="muted">No party members added.</p>}
         </div>
-      </section>
+      </div>
 
       <InvoiceSummary
         wedding={draft}
@@ -376,10 +377,9 @@ export function ProfilePage({ wedding, onClose, onSaved }) {
         onCopy={copyInvoiceMessage}
       />
 
-      <section className="profile-section">
+      <div className="profile-subsection">
         <div className="profile-section-title">
-          <span className="section-number peach-number">02</span>
-          <div><p className="eyebrow">Client information</p><h2>Additional details</h2></div>
+          <div><h2>Additional details</h2></div>
           {editingSection === "additional" ? <div className="section-actions"><button className="profile-save" onClick={save} disabled={saving}>{saving ? "Saving…" : "Save"}</button><button className="profile-cancel" onClick={() => { setDraft(wedding); setEditingSection(null); }}>Cancel</button></div> : <button className="profile-save" onClick={() => setEditingSection("additional")}>Edit</button>}
         </div>
         <div className="detail-grid">
@@ -415,7 +415,8 @@ export function ProfilePage({ wedding, onClose, onSaved }) {
           ) : <Detail label="Recommendations if unavailable" value={draft.recommendationsIfUnavailable == null ? "Not specified" : draft.recommendationsIfUnavailable ? "Yes" : "No"} />}
         </div>
         {editingSection === "additional" ? <label className="notes-label">Notes<textarea value={draft.notes || ""} onChange={(event) => update("notes", event.target.value)} /></label> : <Detail label="Notes" value={draft.notes} />}
-      </section>
+      </div>
+      </div>
       </main>
     </div>
   );

@@ -185,7 +185,8 @@ def test_invoice_generation_message_and_assistant_receipt(client):
     assert generated.status_code == 201
     invoice = generated.json()["invoice"]
 
-    assert invoice["grand_total"] == "449.50"
+    assert invoice["grand_total"] == "329.50"
+    assert "Bridal trial: charged separately" in invoice["message_text"]
     assert invoice["warnings"] == []
     assert invoice["timing_details"]["start_time"] == "07:30"
     assert "Invoice Client" in invoice["message_text"]
