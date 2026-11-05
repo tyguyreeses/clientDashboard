@@ -1604,10 +1604,11 @@ nav small {
 .invoice-financials { margin-top: 20px; }
 .invoice-financials > div { background: #fff7ef; border-color: #f1dfd1; }
 .invoice-financials small { color: #a76a4c; }
-.invoice-lines { border-top: 1px solid var(--line); }
+.invoice-lines { border-top: 0; }
 .invoice-line, .invoice-total-row { display: flex; justify-content: space-between; gap: 16px; padding: 11px 0; border-bottom: 1px solid var(--line); }
 .invoice-subheading { margin: 0; padding: 11px 0; border-bottom: 1px solid var(--line); color: var(--ink); font-size: 18px; font-weight: 700; }
-.invoice-total-row { font-size: 18px; color: var(--ink); }
+.invoice-service-last { border-bottom: 0; }
+.invoice-total-row { font-size: 18px; color: var(--ink); font-weight: 700; }
 .assistant-receipt { margin-top: 22px; padding: 14px; border-radius: 10px; background: var(--lilac); line-height: 1.7; }
 @media (max-width: 640px) {
   .invoice-schedule, .invoice-financials { grid-template-columns: 1fr; }

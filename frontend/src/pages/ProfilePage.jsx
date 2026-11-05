@@ -56,7 +56,7 @@ function InvoiceSummary({ wedding, invoice, invoiceWarnings, assistantReceipt, p
     <div className="invoice-schedule"><div><small>Start at</small><strong>{formatTime(invoice.timing_details?.start_time)}</strong></div><div><small>Ready by</small><strong>{formatTime(invoice.timing_details?.ready_by)}</strong></div><div><small>Service time</small><strong>{invoice.timing_details?.service_minutes || 0} min</strong></div></div>
     <div className="invoice-lines">
       {serviceItems.length > 0 && <h3 className="invoice-subheading">Hair</h3>}
-      {serviceItems.map((item, index) => <div className="invoice-line" key={`${item.description}-${index}`}><span>{item.description} × {item.quantity}</span><strong>{amount(item.total)}</strong></div>)}
+      {serviceItems.map((item, index) => <div className={`invoice-line ${index === serviceItems.length - 1 && feeItems.length ? "invoice-service-last" : ""}`} key={`${item.description}-${index}`}><span>{item.description} × {item.quantity}</span><strong>{amount(item.total)}</strong></div>)}
       {feeItems.length > 0 && <><h3 className="invoice-subheading">Additional fees</h3>{feeItems.map((item, index) => <div className="invoice-line" key={`${item.description}-${index}`}><span>{item.description}</span><strong>{amount(item.total)}</strong></div>)}</>}
     </div>
     <div className="invoice-total-row"><span>Total</span><strong>${invoice.grand_total}</strong></div>
