@@ -177,7 +177,7 @@ Indexes:
 
 - `DATABASE_URL` overrides the database connection string.
 - If `DATABASE_URL` is not set, the app uses SQLite with `SQLITE_DB_PATH` or `data/client_dashboard.db`.
-- The schema initializer creates missing tables and verifies that the expected tables and invoice versioning are present.
+- The schema initializer resets the configured database, creates the current tables, seeds default pricing, and verifies the expected columns and indexes. It is destructive and intended for development/test setup only.
 
 ### Verify The Schema
 
@@ -187,4 +187,4 @@ Run:
 python -m client_dashboard.scripts.init_db
 ```
 
-That script connects to the configured database, creates missing tables, migrates legacy invoice version numbers, and verifies that the expected tables, columns, and indexes are present. It does not replace a full migration system for future destructive or type-changing schema changes.
+That script connects to the configured database, drops and recreates all application tables, seeds default pricing, and verifies the expected tables, columns, and indexes. **This permanently deletes existing application data.** Do not run it against production data; production deployments should use a deliberate migration process instead.

@@ -179,6 +179,7 @@ def calculate_invoice(
     balance_due = money(grand_total - deposit_amount)
 
     timing_details = {
+        "balance_due_date": wedding.wedding_date.isoformat(),
         "ready_by": _time_string(wedding.ready_by),
         "start_time": _time_string(start_time),
         "service_minutes": service_minutes,

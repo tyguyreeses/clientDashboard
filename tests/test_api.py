@@ -265,6 +265,39 @@ def test_invalid_invoice_update_preserves_existing_invoice(client):
     assert unchanged["message_text"] == generated["message_text"]
 
 
+def test_client_edit_returns_invoice_warning_without_changing_invoice(client):
+    pricing_id, client_id, wedding_id = _invoice_fixture(client)
+    generated = client.post(
+        f"/weddings/{wedding_id}/invoice",
+        json={"pricing_version_id": pricing_id},
+    ).json()["invoice"]
+
+    client.patch(f"/weddings/{wedding_id}", json={"ready_by": None})
+    response = client.patch(f"/clients/{client_id}", json={"name": "Warning Client"})
+
+    assert response.status_code == 200
+    assert "Missing required fields: ready_by" in response.json()["invoice_warnings"]
+    unchanged = client.get(f"/weddings/{wedding_id}/invoice").json()
+    assert unchanged["calculation_hash"] == generated["calculation_hash"]
+
+
+def test_deleting_assistant_member_refreshes_invoice_receipt(client):
+    pricing_id, _, wedding_id = _invoice_fixture(client)
+    client.post(f"/weddings/{wedding_id}/invoice", json={"pricing_version_id": pricing_id})
+    assistant = next(
+        member for member in client.get(f"/weddings/{wedding_id}/party-members").json()
+        if member["assistant"]
+    )
+
+    deleted = client.delete(f"/party-members/{assistant['id']}")
+
+    assert deleted.status_code == 204
+    receipt = client.get(
+        f"/invoices/{client.get(f'/weddings/{wedding_id}/invoice').json()['id']}/assistant-receipt"
+    )
+    assert receipt.status_code == 404
+
+
 def test_invoice_validation_reports_all_missing_required_fields(client):
     client_id = client.post("/clients", json={"name": "Missing Fields"}).json()["id"]
     wedding_id = client.post(

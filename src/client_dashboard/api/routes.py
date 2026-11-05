@@ -56,6 +56,9 @@ def _commit(session: Session) -> None:
         if "foreign key constraint failed" in message:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid reference") from exc
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid data") from exc
+    except Exception:
+        session.rollback()
+        raise
 
 
 def _get_or_404(session: Session, model: type, object_id: int, detail: str):
@@ -71,6 +74,7 @@ def _apply_updates(obj, data) -> None:
 
 
 def _refresh_existing_invoice(session: Session, wedding: Wedding) -> str | None:
+    """Recalculate an existing invoice without committing the surrounding edit."""
     invoice = session.scalar(select(Invoice).where(Invoice.wedding_id == wedding.id))
     if invoice is None:
         return None
@@ -80,8 +84,12 @@ def _refresh_existing_invoice(session: Session, wedding: Wedding) -> str | None:
 
     from ..invoice import calculate_invoice
 
+    # Flush source edits, but keep the transaction open so an unexpected error
+    # rolls back both the edit and invoice changes together.
+    session.flush()
+    members = list(session.scalars(select(WeddingPartyMember).where(WeddingPartyMember.wedding_id == wedding.id)))
     try:
-        calculation = calculate_invoice(wedding, wedding.client, pricing, wedding.party_members)
+        calculation = calculate_invoice(wedding, wedding.client, pricing, members)
     except ValueError as exc:
         return str(exc)
 
@@ -97,13 +105,11 @@ def _refresh_existing_invoice(session: Session, wedding: Wedding) -> str | None:
     invoice.timing_details = calculation.timing_details
     invoice.warnings = calculation.warnings
     invoice.message_text = calculation.message_text
-    session.flush()
     if invoice.assistant_receipt is not None:
         session.delete(invoice.assistant_receipt)
         session.flush()
     if calculation.assistant_receipt is not None:
         session.add(AssistantReceipt(invoice_id=invoice.id, **calculation.assistant_receipt))
-    _commit(session)
     return None
 
 
@@ -166,8 +172,8 @@ def update_client(client_id: int, payload: ClientUpdate, session: Session = Depe
     client = _get_or_404(session, Client, client_id, "Client not found")
     updates = payload.model_dump(exclude_unset=True)
     _apply_updates(client, payload)
-    _commit(session)
     if not ({"name", "is_referral"} & updates.keys()):
+        _commit(session)
         session.refresh(client)
         return client
     weddings = session.scalars(
@@ -175,9 +181,14 @@ def update_client(client_id: int, payload: ClientUpdate, session: Session = Depe
         .options(selectinload(Wedding.client), selectinload(Wedding.party_members))
         .where(Wedding.client_id == client.id)
     ).all()
+    warnings = []
     for wedding in weddings:
-        _refresh_existing_invoice(session, wedding)
+        warning = _refresh_existing_invoice(session, wedding)
+        if warning:
+            warnings.append(warning)
+    _commit(session)
     session.refresh(client)
+    client.invoice_warnings = warnings
     return client
 
 
@@ -262,11 +273,11 @@ def update_wedding(wedding_id: int, payload: WeddingUpdate, session: Session = D
         _get_or_404(session, Client, updates["client_id"], "Client not found")
     for field, value in updates.items():
         setattr(wedding, field, value)
-    _commit(session)
     wedding = _get_wedding_detail(session, wedding_id)
     invoice_warning = None
     if {"wedding_date", "address", "city", "venue", "ready_by", "miles_one_way", "assistant", "bridal_trial_status"} & updates.keys():
         invoice_warning = _refresh_existing_invoice(session, wedding)
+    _commit(session)
     result = _get_wedding_detail(session, wedding_id)
     if invoice_warning:
         result.invoice_warnings = [invoice_warning]
@@ -299,9 +310,10 @@ def create_party_member(
     if member.assistant:
         wedding.assistant = True
     session.add(member)
+    warning = _refresh_existing_invoice(session, _get_wedding_detail(session, wedding_id))
     _commit(session)
-    _refresh_existing_invoice(session, _get_wedding_detail(session, wedding_id))
     session.refresh(member)
+    member.invoice_warnings = [warning] if warning else []
     return member
 
 
@@ -339,16 +351,28 @@ def update_party_member(
         setattr(member, field, value)
     if member.assistant:
         member.wedding.assistant = True
+    warning = _refresh_existing_invoice(session, _get_wedding_detail(session, member.wedding_id))
     _commit(session)
-    _refresh_existing_invoice(session, _get_wedding_detail(session, member.wedding_id))
     session.refresh(member)
+    member.invoice_warnings = [warning] if warning else []
     return member
 
 
 @router.delete("/party-members/{party_member_id}", response_model=None, status_code=status.HTTP_204_NO_CONTENT)
 def delete_party_member(party_member_id: int, session: Session = Depends(get_db)) -> None:
     member = _get_or_404(session, WeddingPartyMember, party_member_id, "Party member not found")
+    wedding = _get_wedding_detail(session, member.wedding_id)
     session.delete(member)
+    session.flush()
+    wedding.assistant = session.scalar(
+        select(WeddingPartyMember.id)
+        .where(
+            WeddingPartyMember.wedding_id == wedding.id,
+            WeddingPartyMember.assistant.is_(True),
+        )
+        .limit(1)
+    ) is not None
+    _refresh_existing_invoice(session, wedding)
     _commit(session)
 
 

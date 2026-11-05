@@ -61,6 +61,7 @@ class ClientUpdate(BaseModel):
 class ClientRead(ClientBase, TimestampRead):
     id: int
     archived: bool
+    invoice_warnings: list[str] = Field(default_factory=list)
 
 
 class ClientSummary(ClientRead):
@@ -123,6 +124,7 @@ class WeddingPartyMemberUpdate(BaseModel):
 class WeddingPartyMemberRead(WeddingPartyMemberBase, ORMModel):
     id: int
     wedding_id: int
+    invoice_warnings: list[str] = Field(default_factory=list)
 
 
 class WeddingRead(TimestampRead):

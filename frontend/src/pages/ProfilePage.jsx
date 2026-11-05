@@ -38,7 +38,7 @@ function TrialBoard({ status, onChange }) {
   );
 }
 
-function InvoiceSummary({ invoice, invoiceWarnings, assistantReceipt, pricingVersions, invoiceLoading, copied, onGenerate, onCopy }) {
+function InvoiceSummary({ wedding, invoice, invoiceWarnings, assistantReceipt, pricingVersions, invoiceLoading, copied, onGenerate, onCopy }) {
   if (!invoice) {
     return <section className="profile-section invoice-section"><div className="profile-section-title"><span className="section-number mint-number">03</span><div><p className="eyebrow">Billing</p><h2>Invoice</h2></div></div><p className="muted">No invoice has been generated yet.</p><button className="profile-save" onClick={() => onGenerate()} disabled={invoiceLoading}>Generate invoice</button></section>;
   }
@@ -46,10 +46,18 @@ function InvoiceSummary({ invoice, invoiceWarnings, assistantReceipt, pricingVer
     <div className="profile-section-title"><span className="section-number mint-number">03</span><div><p className="eyebrow">Billing</p><h2>Invoice summary</h2></div><button className="profile-save" onClick={() => onGenerate(invoice.pricing_version_id)} disabled={invoiceLoading}>{invoiceLoading ? "Generating…" : "Regenerate invoice"}</button></div>
     <div className="invoice-controls"><label>Pricing version<select value={invoice.pricing_version_id} disabled={invoiceLoading} onChange={(event) => onGenerate(Number(event.target.value))}>{pricingVersions.map((version) => <option key={version.id} value={version.id}>{version.name}</option>)}</select></label><button className="profile-save" onClick={onCopy}>{copied ? "Copied" : "Copy invoice message"}</button></div>
     {(invoiceWarnings?.length > 0 || invoice.warnings?.length > 0) && <div className="invoice-warnings"><strong>Invoice warnings</strong>{[...(invoiceWarnings || []), ...(invoice.warnings || [])].map((warning, index) => <div key={`${warning}-${index}`}>{warning}</div>)}</div>}
+    <div className="invoice-details">
+      <strong>{wedding.name}</strong>
+      <span>Wedding date: {formatDate(wedding.weddingDate)}</span>
+      <span>Address: {wedding.address || "—"}</span>
+      {wedding.city && <span>City: {wedding.city}</span>}
+      {wedding.venue && <span>Venue: {wedding.venue}</span>}
+    </div>
     <div className="invoice-meta"><span>Ready by {invoice.timing_details?.ready_by || "—"}</span><span>Start at {invoice.timing_details?.start_time || "—"}</span><span>{invoice.timing_details?.service_minutes || 0} minutes</span></div>
+    <div className="invoice-durations">Service durations: bride {invoice.timing_details?.service_durations?.bride || 0} min · updo {invoice.timing_details?.service_durations?.bridal_party_updo || 0} min · down {invoice.timing_details?.service_durations?.bridal_party_down || 0} min · flower girl {invoice.timing_details?.service_durations?.flowergirl || 0} min</div>
     <div className="invoice-lines">{invoice.line_items.map((item, index) => <div className="invoice-line" key={`${item.description}-${index}`}><span>{item.description} × {item.quantity}</span><strong>${item.total}</strong></div>)}</div>
     <div className="invoice-total-row"><span>Total</span><strong>${invoice.grand_total}</strong></div>
-    <div className="invoice-balance"><span>Non-refundable deposit: ${invoice.deposit_amount}</span><span>Remaining balance: ${invoice.balance_due}</span></div>
+    <div className="invoice-balance"><span>Non-refundable deposit: ${invoice.deposit_amount}</span><span>Remaining balance: ${invoice.balance_due}</span><span>Balance due date: {formatDate(invoice.timing_details?.balance_due_date || wedding.weddingDate)}</span></div>
     {assistantReceipt && <div className="assistant-receipt"><h3>Assistant receipt</h3><div>Total paid to assistant: ${assistantReceipt.total_paid_to_assistant}</div><div>Assisted bridal-party members: {assistantReceipt.assisted_bridesmaid_count}</div></div>}
   </section>;
 }
@@ -68,6 +76,7 @@ export function ProfilePage({ wedding, onClose, onSaved }) {
   const update = (field, value) =>
     setDraft((item) => ({ ...item, [field]: value }));
   const loadInvoiceData = async () => {
+    setInvoiceLoading(true);
     try {
       const [currentInvoice, versions] = await Promise.all([
         json(`/weddings/${wedding.id}/invoice`).catch((err) => {
@@ -81,6 +90,8 @@ export function ProfilePage({ wedding, onClose, onSaved }) {
       setPricingVersions(versions);
     } catch (err) {
       setError(err.message);
+    } finally {
+      setInvoiceLoading(false);
     }
   };
 
@@ -105,9 +116,13 @@ export function ProfilePage({ wedding, onClose, onSaved }) {
 
   const copyInvoiceMessage = async () => {
     if (!invoice?.message_text) return;
-    await navigator.clipboard.writeText(invoice.message_text);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1800);
+    try {
+      await navigator.clipboard.writeText(invoice.message_text);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1800);
+    } catch {
+      setError("Unable to copy the invoice message. Check browser clipboard permissions.");
+    }
   };
 
   const requestClose = () => {
@@ -153,7 +168,7 @@ export function ProfilePage({ wedding, onClose, onSaved }) {
         }),
       ]);
       const members = draft.partyMembers || [];
-      await Promise.all(
+      const updatedMembers = await Promise.all(
         members.map((member) =>
           json(`/party-members/${member.id}`, {
             method: "PATCH",
@@ -166,7 +181,11 @@ export function ProfilePage({ wedding, onClose, onSaved }) {
         ),
       );
       const refreshedWedding = await json(`/weddings/${draft.id}`);
-      setInvoiceWarnings(updatedWedding.invoice_warnings || []);
+      setInvoiceWarnings([
+        ...(client.invoice_warnings || []),
+        ...(updatedWedding.invoice_warnings || []),
+        ...updatedMembers.flatMap((member) => member.invoice_warnings || []),
+      ]);
       await loadInvoiceData();
       const result = weddingView({ ...refreshedWedding, client });
       onSaved(result);
@@ -318,6 +337,7 @@ export function ProfilePage({ wedding, onClose, onSaved }) {
       </section>
 
       <InvoiceSummary
+        wedding={draft}
         invoice={invoice}
         invoiceWarnings={invoiceWarnings}
         assistantReceipt={assistantReceipt}
