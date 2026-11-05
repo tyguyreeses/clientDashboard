@@ -68,6 +68,9 @@ export const formatMoney = (value) =>
     maximumFractionDigits: 0,
   }).format(Number(value || 0));
 
+export const formatDistance = (value) =>
+  value == null || value === "" ? "Not specified" : Number(value).toString();
+
 export const initials = (name = "") =>
   name
     .split(/\s+/)
@@ -121,7 +124,7 @@ export function weddingView(wedding) {
     address: wedding.address || "",
     city: wedding.city || "",
     venue: wedding.venue || "",
-    miles: wedding.miles_one_way,
+    miles: wedding.miles_one_way == null ? null : Number(wedding.miles_one_way),
     partyMembers: wedding.party_members || [],
     people: (wedding.party_members || []).length,
     bridalTrialStatus: wedding.bridal_trial_status,

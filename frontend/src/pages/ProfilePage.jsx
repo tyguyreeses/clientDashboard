@@ -13,6 +13,7 @@ import {
   weddingView,
   HAIRSTYLE,
   PARTY_ROLE,
+  formatDistance,
 } from "../utils";
 
 const TRIAL_STEPS = ["interested", "link_sent", "booked", "complete"];
@@ -271,7 +272,7 @@ export function ProfilePage({ wedding, onClose, onSaved }) {
           ) : <Detail label="Address" value={draft.address} />}
           {editingSection === "wedding" ? (
             <Editable label="Miles one way" type="number" min="0" step="0.01" value={draft.miles ?? ""} onChange={(value) => update("miles", value)} required />
-          ) : <Detail label="Miles one way" value={draft.miles == null ? "Not specified" : draft.miles} />}
+          ) : <Detail label="Miles one way" value={formatDistance(draft.miles)} />}
           {editingSection === "wedding" ? (
             <Editable label="City" value={draft.city} onChange={(value) => update("city", value)} />
           ) : <Detail label="City" value={draft.city} />}

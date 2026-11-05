@@ -21,6 +21,10 @@ def decimal_string(value: Decimal | int | str) -> str:
     return format(money(value), ".2f")
 
 
+def distance_string(value: Decimal | int | str) -> str:
+    return format(Decimal(value).normalize(), "f")
+
+
 def _time_string(value: time | None) -> str | None:
     return value.strftime("%H:%M") if value else None
 
@@ -214,7 +218,7 @@ def calculate_invoice(
             "address": wedding.address,
             "city": wedding.city,
             "venue": wedding.venue,
-            "miles_one_way": decimal_string(wedding.miles_one_way),
+            "miles_one_way": distance_string(wedding.miles_one_way),
             "ready_by": _time_string(wedding.ready_by),
             "assistant": wedding.assistant,
             "bridal_trial_status": wedding.bridal_trial_status,
