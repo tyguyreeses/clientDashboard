@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { AddClientModal } from "./components/AddClientModal";
 import { Footer, Header } from "./components/Layout";
-import { ClientsPage } from "./pages/ClientsPage";
+import { HistoryPage } from "./pages/HistoryPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { KanbanBoard, Stat } from "./components/WeddingBoard";
 import { initials, json, weddingView } from "./utils";
@@ -128,25 +128,8 @@ export function App() {
           }}
         />
         )}
-        {page === "clients" ? (
-        <ClientsPage
-          clients={clients}
-          weddings={weddings}
-          onAddClient={() => setShowAddClient(true)}
-          onSaved={(client) =>
-            setClients((items) =>
-              items.map((old) => (old.id === client.id ? client : old)),
-            )
-          }
-          onArchived={(clientId) => {
-            setClients((items) =>
-              items.filter((client) => client.id !== clientId),
-            );
-            setWeddings((items) =>
-              items.filter((wedding) => wedding.clientId !== clientId),
-            );
-          }}
-        />
+        {page === "history" ? (
+        <HistoryPage onSelect={openWedding} />
       ) : (
         <main className="dashboard">
           <div className="welcome-row">
@@ -214,7 +197,10 @@ export function App() {
                 <button
                   className="client-chip"
                   key={client.id}
-                  onClick={() => setPage("clients")}
+                  onClick={() => {
+                    const wedding = weddings.find((item) => item.clientId === client.id);
+                    if (wedding) openWedding(wedding);
+                  }}
                 >
                   <b>{initials(client.name)}</b>
                   {client.name}

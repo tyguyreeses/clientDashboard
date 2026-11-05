@@ -1161,6 +1161,34 @@ nav small {
 .full-button span {
   margin-left: 8px;
 }
+.history-page {
+  width: min(1180px, 89vw);
+  margin: 0 auto;
+  flex: 1;
+  padding: 55px 0 72px;
+}
+.history-filters {
+  display: grid;
+  grid-template-columns: 2fr repeat(4, 1fr);
+  gap: 10px;
+  margin: 24px 0;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(255, 253, 249, .8);
+}
+.history-filters input, .history-filters select { min-width: 0; border: 1px solid var(--line); border-radius: 8px; padding: 10px; background: white; color: var(--ink); }
+.history-filters label { display: grid; gap: 5px; color: var(--muted); font-size: 10px; font-weight: 700; }
+.history-search { grid-column: 1 / -1; font-size: 13px; }
+.history-results { display: grid; gap: 8px; }
+.history-result { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 14px; width: 100%; padding: 15px; border: 1px solid var(--line); border-radius: 11px; background: rgba(255, 253, 249, .8); color: var(--ink); text-align: left; cursor: pointer; }
+.history-result:hover { border-color: var(--coral); background: #fff7f1; }
+.history-result span:nth-child(2) { display: grid; gap: 4px; }
+.history-result small { color: var(--muted); }
+.history-result-meta { display: grid; gap: 4px; text-align: right; }
+.history-result-meta b { font-size: 11px; }
+@media (max-width: 800px) { .history-filters { grid-template-columns: 1fr 1fr; } .history-search { grid-column: 1 / -1; } }
+@media (max-width: 520px) { .history-result { grid-template-columns: auto 1fr; } .history-result-meta { grid-column: 2; text-align: left; } }
 .clients-page {
   width: min(1180px, 89vw);
   margin: 0 auto;
@@ -1578,6 +1606,7 @@ nav small {
 .invoice-financials small { color: #a76a4c; }
 .invoice-lines { border-top: 1px solid var(--line); }
 .invoice-line, .invoice-total-row { display: flex; justify-content: space-between; gap: 16px; padding: 11px 0; border-bottom: 1px solid var(--line); }
+.invoice-subheading { margin: 0; padding: 11px 0; border-bottom: 1px solid var(--line); color: var(--ink); font-size: 18px; font-weight: 700; }
 .invoice-total-row { font-size: 18px; color: var(--ink); }
 .assistant-receipt { margin-top: 22px; padding: 14px; border-radius: 10px; background: var(--lilac); line-height: 1.7; }
 @media (max-width: 640px) {

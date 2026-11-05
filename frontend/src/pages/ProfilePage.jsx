@@ -42,6 +42,10 @@ function TrialBoard({ status, onChange }) {
 }
 
 function InvoiceSummary({ wedding, invoice, invoiceWarnings, assistantReceipt, pricingVersions, invoiceLoading, copied, onGenerate, onCopy }) {
+  const isFee = (item) => ["fee", "discount"].includes(item.category) || ["Travel", "Assistant travel fee", "Assistant fee", "Early morning fee", "Referral travel discount"].includes(item.description);
+  const serviceItems = invoice?.line_items?.filter((item) => !isFee(item)) || [];
+  const feeItems = invoice?.line_items?.filter(isFee) || [];
+  const amount = (value) => String(value).startsWith("-") ? `-$${String(value).slice(1)}` : `$${value}`;
   if (!invoice) {
     return <section className="profile-section invoice-section"><div className="profile-section-title"><span className="section-number mint-number">03</span><div><p className="eyebrow">Billing</p><h2>Invoice</h2></div></div><p className="muted">No invoice has been generated yet.</p><button className="profile-save" onClick={() => onGenerate()} disabled={invoiceLoading}>Generate invoice</button></section>;
   }
@@ -50,7 +54,11 @@ function InvoiceSummary({ wedding, invoice, invoiceWarnings, assistantReceipt, p
     <div className="invoice-controls"><label>Pricing version<select value={invoice.pricing_version_id} disabled={invoiceLoading} onChange={(event) => onGenerate(Number(event.target.value))}>{pricingVersions.map((version) => <option key={version.id} value={version.id}>{version.name}</option>)}</select></label><button className="profile-save" onClick={onCopy}>{copied ? "Copied" : "Copy invoice message"}</button></div>
     {(invoiceWarnings?.length > 0 || invoice.warnings?.length > 0) && <div className="invoice-warnings"><strong>Invoice warnings</strong>{[...(invoiceWarnings || []), ...(invoice.warnings || [])].map((warning, index) => <div key={`${warning}-${index}`}>{warning}</div>)}</div>}
     <div className="invoice-schedule"><div><small>Start at</small><strong>{formatTime(invoice.timing_details?.start_time)}</strong></div><div><small>Ready by</small><strong>{formatTime(invoice.timing_details?.ready_by)}</strong></div><div><small>Service time</small><strong>{invoice.timing_details?.service_minutes || 0} min</strong></div></div>
-    <div className="invoice-lines">{invoice.line_items.map((item, index) => <div className="invoice-line" key={`${item.description}-${index}`}><span>{item.description} × {item.quantity}</span><strong>${item.total}</strong></div>)}</div>
+    <div className="invoice-lines">
+      {serviceItems.length > 0 && <h3 className="invoice-subheading">Hair</h3>}
+      {serviceItems.map((item, index) => <div className="invoice-line" key={`${item.description}-${index}`}><span>{item.description} × {item.quantity}</span><strong>{amount(item.total)}</strong></div>)}
+      {feeItems.length > 0 && <><h3 className="invoice-subheading">Additional fees</h3>{feeItems.map((item, index) => <div className="invoice-line" key={`${item.description}-${index}`}><span>{item.description}</span><strong>{amount(item.total)}</strong></div>)}</>}
+    </div>
     <div className="invoice-total-row"><span>Total</span><strong>${invoice.grand_total}</strong></div>
     <div className="invoice-financials"><div><small>Non-refundable deposit</small><strong>${invoice.deposit_amount}</strong></div><div><small>Remaining balance</small><strong>${invoice.balance_due}</strong></div><div><small>Balance due date</small><strong>{formatDate(invoice.timing_details?.balance_due_date || wedding.weddingDate)}</strong></div></div>
     {assistantReceipt && <div className="assistant-receipt"><h3>Assistant receipt</h3><div>Total paid to assistant: ${assistantReceipt.total_paid_to_assistant}</div><div>Assisted bridal-party members: {assistantReceipt.assisted_bridesmaid_count}</div></div>}

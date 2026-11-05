@@ -102,7 +102,7 @@ class WeddingUpdate(BaseModel):
 
 class WeddingPartyMemberBase(BaseModel):
     role: PartyRole
-    hairstyle: HairStyle
+    hairstyle: HairStyle = "D"
     assistant: bool = False
     # Deprecated compatibility fields for older API clients.
     by_me_quantity: int | None = Field(default=None, ge=0)

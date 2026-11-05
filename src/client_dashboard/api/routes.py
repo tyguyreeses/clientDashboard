@@ -120,6 +120,7 @@ def _wedding_query(
     wedding_date: date | None = None,
     client_id: int | None = None,
     source: str | None = None,
+    include_archived: bool = False,
 ) -> Select[tuple[Wedding]]:
     query = select(Wedding).options(
         selectinload(Wedding.client),
@@ -135,7 +136,8 @@ def _wedding_query(
         query = query.where(Wedding.client_id == client_id)
     if source is not None:
         query = query.where(Client.source == source)
-    query = query.where(Wedding.client.has(Client.archived.is_(False)))
+    if not include_archived:
+        query = query.where(Wedding.client.has(Client.archived.is_(False)))
     return query.order_by(desc(Wedding.wedding_date), desc(Wedding.id))
 
 
@@ -215,7 +217,11 @@ def create_wedding(payload: WeddingCreate, session: Session = Depends(get_db)) -
                     if index == 0
                     else WeddingPartyMember.ROLE_BRIDAL_PARTY
                 ),
-                hairstyle=WeddingPartyMember.HAIRSTYLE_UPDO,
+                hairstyle=(
+                    WeddingPartyMember.HAIRSTYLE_UPDO
+                    if index == 0
+                    else WeddingPartyMember.HAIRSTYLE_DOWN
+                ),
                 assistant=False,
             )
         )
@@ -245,6 +251,7 @@ def list_weddings(
     source: str | None = None,
     limit: int = Query(default=100, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
+    include_archived: bool = Query(default=False),
 ) -> list[Wedding]:
     stmt = _wedding_query(
         session,
@@ -252,6 +259,7 @@ def list_weddings(
         wedding_date=wedding_date,
         client_id=client_id,
         source=source,
+        include_archived=include_archived,
     )
     return list(session.scalars(stmt.offset(offset).limit(limit)))
 

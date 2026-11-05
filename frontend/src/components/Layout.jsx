@@ -19,14 +19,14 @@ export function Header({ page, onNavigate, onAddClient }) {
           Wedding board
         </a>
         <a
-          className={page === "clients" ? "active" : ""}
-          href="#clients"
+          className={page === "history" ? "active" : ""}
+          href="#history"
           onClick={(event) => {
             event.preventDefault();
-            onNavigate("clients");
+            onNavigate("history");
           }}
         >
-          Clients
+          History
         </a>
         <a href="#calendar">
           Calendar <small>soon</small>

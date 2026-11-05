@@ -54,12 +54,19 @@ def _service_minutes(member: WeddingPartyMember, pricing: PricingVersion) -> int
     return 0
 
 
-def _line(description: str, quantity: int, unit_price: Decimal, total: Decimal) -> dict[str, Any]:
+def _line(
+    description: str,
+    quantity: int,
+    unit_price: Decimal,
+    total: Decimal,
+    category: str = "service",
+) -> dict[str, Any]:
     return {
         "description": description,
         "quantity": quantity,
         "unit_price": decimal_string(unit_price),
         "total": decimal_string(total),
+        "category": category,
     }
 
 
@@ -154,16 +161,16 @@ def calculate_invoice(
         if client.is_referral:
             discount_total = money(regular_travel * pricing.travel_discount_percentage / Decimal("100"))
         travel_total = regular_travel
-        line_items.append(_line("Travel", 1, regular_travel, regular_travel))
+        line_items.append(_line("Travel", 1, regular_travel, regular_travel, "fee"))
         if effective_assistant:
             assistant_travel = money(miles * pricing.travel_fee)
             travel_total = money(travel_total + assistant_travel)
-            line_items.append(_line("Assistant travel fee", 1, assistant_travel, assistant_travel))
+            line_items.append(_line("Assistant travel fee", 1, assistant_travel, assistant_travel, "fee"))
 
     additional_fees = ZERO
     if effective_assistant:
         additional_fees = money(additional_fees + pricing.assistant_fee)
-        line_items.append(_line("Assistant fee", 1, pricing.assistant_fee, pricing.assistant_fee))
+        line_items.append(_line("Assistant fee", 1, pricing.assistant_fee, pricing.assistant_fee, "fee"))
 
     # The primary stylist and assistant work concurrently. The 15-minute buffer
     # is added after selecting the longer workload.
@@ -178,11 +185,11 @@ def calculate_invoice(
     start_time = start_datetime.time()
     if start_time < time(8, 0):
         additional_fees = money(additional_fees + pricing.early_morning_fee)
-        line_items.append(_line("Early morning fee", 1, pricing.early_morning_fee, pricing.early_morning_fee))
+        line_items.append(_line("Early morning fee", 1, pricing.early_morning_fee, pricing.early_morning_fee, "fee"))
 
     referral_text = "Referral travel discount" if discount_total else None
     if discount_total:
-        line_items.append(_line(referral_text, 1, -discount_total, -discount_total))
+        line_items.append(_line(referral_text, 1, -discount_total, -discount_total, "discount"))
 
     grand_total = money(services_total + travel_total + additional_fees - discount_total)
     deposit_amount = money(grand_total * pricing.deposit_percentage / Decimal("100"))
@@ -264,7 +271,7 @@ def calculate_invoice(
         }
 
     message_lines = [
-        f"Invoice for {client.name}",
+        f"Invoice for {client.name}\n",
         f"Wedding date: {wedding.wedding_date.isoformat()}",
     ]
     if wedding.city:
@@ -272,27 +279,39 @@ def calculate_invoice(
     if wedding.venue:
         message_lines.append(f"Venue: {wedding.venue}")
     message_lines.extend([
-        f"Address: {wedding.address}",
-        f"Ready by: {_message_time_string(wedding.ready_by)}",
-        f"We will start at {_message_time_string(start_time)} and expect approximately {service_minutes} minutes of service.",
-        "Service durations: "
-        f"bride {pricing.bride_duration_minutes} min, "
-        f"bridal party updo {pricing.bridesmaid_updo_duration_minutes} min, "
-        f"bridal party down {pricing.bridesmaid_down_duration_minutes} min, "
-        f"flower girl {pricing.flowergirl_duration_minutes} min.",
+        f"Address: {wedding.address}\n",
+        f"Start time: {_message_time_string(start_time)}",
+        f"Ready by: {_message_time_string(wedding.ready_by)}\n",
+        f"Start time is dependent on what each bridal party member wants, updo/half-up! ",
+        f"For reference:",
+        f" - Bride: {pricing.bride_duration_minutes} min",
+        f" - Bridal party updo: {pricing.bridesmaid_updo_duration_minutes} min",
+        f" - Bridal party half-up style: {pricing.bridesmaid_down_duration_minutes} min",
+        f" - Glower girl: {pricing.flowergirl_duration_minutes} min",
+        "* I also plan to have everyone done 15 minutes before the time I’m told. "
+        "Craziness kicks in and there’s always last minute things bridal groups are forgetting!",
     ])
+    message_lines.append("\nHair:")
     message_lines.extend(
-        f"{item['description']}: {item['quantity']} × ${item['unit_price']} = ${item['total']}"
+        f" - {item['description']}: {item['quantity']} × ${item['unit_price']} = ${item['total']}"
         for item in line_items
-        if item["description"] != "Referral travel discount"
+        if item.get("category", "service") == "service"
     )
+
+    message_lines.append("\nAdditional Fees:")
+    message_lines.extend(
+        f" - {item['description']}: ${item['total']}"
+        for item in line_items
+        if item.get("category") in ("fee", "discount")
+    )
+
     if discount_total:
         message_lines.append(
-            f"Referral travel discount (you save ${decimal_string(discount_total)} "
-            f"with a {decimal_string(pricing.travel_discount_percentage)}% discount applied)"
+            f"You save ${decimal_string(discount_total)} "
+            f"with a {decimal_string(pricing.travel_discount_percentage)}% discount applied"
         )
     message_lines.extend([
-        f"Total: ${decimal_string(grand_total)}",
+        f"\nTotal: ${decimal_string(grand_total)}",
         f"Non-refundable deposit: ${decimal_string(deposit_amount)}",
         f"Remaining balance: ${decimal_string(balance_due)}",
         f"Balance due date: {wedding.wedding_date.isoformat()}",

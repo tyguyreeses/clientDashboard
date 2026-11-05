@@ -134,6 +134,7 @@ export function weddingView(wedding) {
     recommendationsIfUnavailable: client.recommendations_if_unavailable,
     referralName: client.referral_name || "",
     isReferral: Boolean(client.is_referral),
+    archived: Boolean(client.archived),
     notes: client.notes || "",
     initials: initials(client.name),
     weddingDate: wedding.wedding_date,
