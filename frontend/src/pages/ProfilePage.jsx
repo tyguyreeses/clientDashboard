@@ -7,6 +7,7 @@ import {
 } from "../components/FormFields";
 import {
   formatDate,
+  formatPhone,
   formatTime,
   json,
   STATUS,
@@ -230,6 +231,13 @@ export function ProfilePage({ wedding, onClose, onSaved }) {
           {editingSection === "header" ? (
             <div className="profile-contact-edit">
               <input
+                value={draft.socialMedia}
+                aria-label="Social media"
+                placeholder="Social media"
+                onChange={(event) => update("socialMedia", event.target.value)}
+              />
+              <span>·</span>
+              <input
                 value={draft.email}
                 aria-label="Email"
                 onChange={(event) => update("email", event.target.value)}
@@ -238,11 +246,11 @@ export function ProfilePage({ wedding, onClose, onSaved }) {
               <input
                 value={draft.phone}
                 aria-label="Phone"
-                onChange={(event) => update("phone", event.target.value)}
+                onChange={(event) => update("phone", formatPhone(event.target.value))}
               />
             </div>
           ) : (
-            <p>{draft.email || "Email not provided"} · {draft.phone || "Phone not provided"}</p>
+            <p>{draft.socialMedia || "Social media not provided"} · {draft.email || "Email not provided"} · {formatPhone(draft.phone) || "Phone not provided"}</p>
           )}
           {editingSection === "header" && (
             <input

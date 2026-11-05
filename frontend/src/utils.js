@@ -80,6 +80,16 @@ export const initials = (name = "") =>
     .slice(0, 2)
     .toUpperCase();
 
+export const formatPhone = (value = "") => {
+  let digits = String(value).replace(/\D/g, "");
+  if (digits.length === 11 && digits.startsWith("1")) digits = digits.slice(1);
+  digits = digits.slice(0, 10);
+  if (!digits) return "";
+  if (digits.length <= 3) return `(${digits}`;
+  if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+};
+
 export const formatTime = (value) => {
   if (!value) return "Time TBD";
   const [hours, minutes] = value.slice(0, 5).split(":").map(Number);

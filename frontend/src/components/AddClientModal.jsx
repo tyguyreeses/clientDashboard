@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { Editable, SelectField } from "./FormFields";
-import { json } from "../utils";
+import { formatPhone, json } from "../utils";
 
 export function AddClientModal({ onClose, onCreated }) {
   const [form, setForm] = useState({
@@ -106,7 +106,7 @@ export function AddClientModal({ onClose, onCreated }) {
           <Editable
             label="Phone number"
             value={form.phone}
-            onChange={(value) => update("phone", value)}
+            onChange={(value) => update("phone", formatPhone(value))}
           />
           <Editable
             label="Instagram / Facebook *"
