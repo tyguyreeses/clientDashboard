@@ -3,9 +3,10 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from client_dashboard.models import Payment
+from client_dashboard.models import Payment, PricingVersion
 
 
 def test_client_crud(client, db_session_factory):
@@ -142,14 +143,33 @@ def _pricing_payload(name: str, **overrides):
         "deposit_percentage": "50",
         "travel_discount_percentage": "20",
         "assistant_travel_fee_cut": "15",
+        "bride_duration_minutes": 75,
+        "bridesmaid_updo_duration_minutes": 30,
+        "bridesmaid_down_duration_minutes": 45,
+        "flowergirl_duration_minutes": 30,
     }
     payload.update(overrides)
     return payload
 
 
+def _save_pricing(client, payload):
+    preview = client.post("/pricing-versions/save-preview", json=payload)
+    assert preview.status_code == 200, preview.text
+    response = client.post(
+        "/pricing-versions/save",
+        json={
+            **payload,
+            "confirmed": True,
+            "confirmation_fingerprint": preview.json()["confirmation_fingerprint"],
+        },
+    )
+    assert response.status_code == 200, response.text
+    return response.json()["version"]
+
+
 def _invoice_fixture(client, *, pricing_name="Invoice pricing", pricing_overrides=None):
     pricing_payload = _pricing_payload(pricing_name, **(pricing_overrides or {}))
-    pricing_id = client.post("/pricing-versions", json=pricing_payload).json()["id"]
+    pricing_id = _save_pricing(client, pricing_payload)["id"]
     client_id = client.post(
         "/clients",
         json={"name": "Invoice Client", "is_referral": True},
@@ -200,12 +220,15 @@ def test_invoice_generation_message_and_assistant_receipt(client):
     assert receipt.json()["total_paid_to_assistant"] == "107.50"
 
 
-def test_invoice_overwrites_for_pricing_selection_and_has_no_version(client):
+def test_invoice_overwrites_for_pricing_selection_and_has_no_version(client, db_session_factory):
     first_pricing, _, wedding_id = _invoice_fixture(client)
-    second_pricing = client.post(
-        "/pricing-versions",
-        json=_pricing_payload("Second pricing", bride_price="200"),
-    ).json()["id"]
+    with db_session_factory() as session:
+        version = session.get(PricingVersion, first_pricing)
+        version.created_at = datetime.now(timezone.utc) - timedelta(days=8)
+        session.commit()
+    second_pricing = _save_pricing(
+        client, _pricing_payload("Second pricing", bride_price="200")
+    )["id"]
 
     first = client.post(
         f"/weddings/{wedding_id}/invoice",
@@ -309,10 +332,7 @@ def test_invoice_validation_reports_all_missing_required_fields(client):
             "address": "123 Main Street",
         },
     ).json()["id"]
-    pricing_id = client.post(
-        "/pricing-versions",
-        json=_pricing_payload("Validation pricing"),
-    ).json()["id"]
+    pricing_id = _save_pricing(client, _pricing_payload("Validation"))["id"]
 
     response = client.post(
         f"/weddings/{wedding_id}/invoice",

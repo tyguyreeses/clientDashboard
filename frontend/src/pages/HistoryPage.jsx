@@ -39,7 +39,7 @@ export function HistoryPage({ onSelect }) {
   }), [weddings, query, status, archive, source, trial, from, to]);
 
   return <main className="history-page">
-    <div className="page-heading"><div><p className="eyebrow">History</p><h1>Search everything</h1><p className="muted">Find current and archived client records, weddings, and inquiries.</p></div></div>
+    <div className="page-heading"><div><h1>All clients</h1></div></div>
     <section className="history-filters">
       <input className="history-search" placeholder="Search names, contact details, venues, addresses, notes…" value={query} onChange={(event) => setQuery(event.target.value)} />
       <select value={archive} onChange={(event) => setArchive(event.target.value)}><option value="all">Current and archived</option><option value="false">Current only</option><option value="true">Archived only</option></select>

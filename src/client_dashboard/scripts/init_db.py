@@ -46,14 +46,14 @@ def _seed_default_pricing() -> None:
             return
         connection.exec_driver_sql(
             """INSERT INTO pricing_versions
-            (name, bride_price, trial_price, bridesmaid_price, flowergirl_price,
+            (name, name_normalized, revision, bride_price, trial_price, bridesmaid_price, flowergirl_price,
              early_morning_fee, assistant_fee, assistant_bridesmaid_cut,
              base_travel_fee, travel_fee, deposit_percentage, travel_discount_percentage,
              bride_duration_minutes, bridesmaid_updo_duration_minutes,
              bridesmaid_down_duration_minutes, flowergirl_duration_minutes,
              assistant_travel_fee_cut, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)""",
-            ("Default pricing", 120, 120, 90, 45, 40, 40, 75, 25, 0.75, 50, 20, 75, 30, 45, 30, 15),
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)""",
+            ("Default pricing", "default pricing", 1, 120, 120, 90, 45, 40, 40, 75, 25, 0.75, 50, 20, 75, 30, 45, 30, 15),
         )
 
 

@@ -26,6 +26,16 @@ export function Header({ page, onNavigate, onAddClient }) {
         >
           History
         </a>
+        <a
+          className={page === "pricing" ? "active" : ""}
+          href="#pricing"
+          onClick={(event) => {
+            event.preventDefault();
+            onNavigate("pricing");
+          }}
+        >
+          Pricing
+        </a>
         <a href="#calendar">
           Calendar <small>soon</small>
         </a>

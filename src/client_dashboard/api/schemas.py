@@ -4,7 +4,7 @@ from datetime import date, datetime, time
 from decimal import Decimal
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 WeddingStatus = Literal[0, 1, 2, 3, 4, 5, 6]
 BridalTrialStatus = Literal["not_interested", "interested", "link_sent", "booked", "complete", "cancelled"]
@@ -165,51 +165,83 @@ class WeddingListItem(TimestampRead):
 
 
 class PricingVersionBase(BaseModel):
-    name: str = Field(min_length=1, max_length=100)
+    name: str
     bride_price: Decimal = Field(ge=0, max_digits=10, decimal_places=2)
     trial_price: Decimal = Field(ge=0, max_digits=10, decimal_places=2)
     bridesmaid_price: Decimal = Field(ge=0, max_digits=10, decimal_places=2)
     flowergirl_price: Decimal = Field(ge=0, max_digits=10, decimal_places=2)
     early_morning_fee: Decimal = Field(ge=0, max_digits=10, decimal_places=2)
     assistant_fee: Decimal = Field(ge=0, max_digits=10, decimal_places=2)
-    assistant_bridesmaid_cut: Decimal = Field(ge=0, le=100, max_digits=5, decimal_places=2)
+    assistant_bridesmaid_cut: Decimal = Field(ge=0, max_digits=10, decimal_places=2)
     base_travel_fee: Decimal = Field(ge=0, max_digits=10, decimal_places=2)
     travel_fee: Decimal = Field(ge=0, max_digits=10, decimal_places=2)
     deposit_percentage: Decimal = Field(ge=0, le=100, max_digits=5, decimal_places=2)
     travel_discount_percentage: Decimal = Field(ge=0, le=100, max_digits=5, decimal_places=2)
-    bride_duration_minutes: int = Field(default=75, ge=0)
-    bridesmaid_updo_duration_minutes: int = Field(default=30, ge=0)
-    bridesmaid_down_duration_minutes: int = Field(default=45, ge=0)
-    flowergirl_duration_minutes: int = Field(default=30, ge=0)
-    assistant_travel_fee_cut: Decimal = Field(default=Decimal("15.00"), ge=0, max_digits=10, decimal_places=2)
+    bride_duration_minutes: int = Field(ge=0)
+    bridesmaid_updo_duration_minutes: int = Field(ge=0)
+    bridesmaid_down_duration_minutes: int = Field(ge=0)
+    flowergirl_duration_minutes: int = Field(ge=0)
+    assistant_travel_fee_cut: Decimal = Field(ge=0, max_digits=10, decimal_places=2)
 
-
-class PricingVersionCreate(PricingVersionBase):
-    pass
-
-
-class PricingVersionUpdate(BaseModel):
-    name: str | None = Field(default=None, min_length=1, max_length=100)
-    bride_price: Decimal | None = Field(default=None, ge=0, max_digits=10, decimal_places=2)
-    trial_price: Decimal | None = Field(default=None, ge=0, max_digits=10, decimal_places=2)
-    bridesmaid_price: Decimal | None = Field(default=None, ge=0, max_digits=10, decimal_places=2)
-    flowergirl_price: Decimal | None = Field(default=None, ge=0, max_digits=10, decimal_places=2)
-    early_morning_fee: Decimal | None = Field(default=None, ge=0, max_digits=10, decimal_places=2)
-    assistant_fee: Decimal | None = Field(default=None, ge=0, max_digits=10, decimal_places=2)
-    assistant_bridesmaid_cut: Decimal | None = Field(default=None, ge=0, le=100, max_digits=5, decimal_places=2)
-    base_travel_fee: Decimal | None = Field(default=None, ge=0, max_digits=10, decimal_places=2)
-    travel_fee: Decimal | None = Field(default=None, ge=0, max_digits=10, decimal_places=2)
-    deposit_percentage: Decimal | None = Field(default=None, ge=0, le=100, max_digits=5, decimal_places=2)
-    travel_discount_percentage: Decimal | None = Field(default=None, ge=0, le=100, max_digits=5, decimal_places=2)
-    bride_duration_minutes: int | None = Field(default=None, ge=0)
-    bridesmaid_updo_duration_minutes: int | None = Field(default=None, ge=0)
-    bridesmaid_down_duration_minutes: int | None = Field(default=None, ge=0)
-    flowergirl_duration_minutes: int | None = Field(default=None, ge=0)
-    assistant_travel_fee_cut: Decimal | None = Field(default=None, ge=0, max_digits=10, decimal_places=2)
+    @field_validator("name")
+    @classmethod
+    def valid_name(cls, value: str) -> str:
+        value = value.strip()
+        if not value or len(value) > 15:
+            raise ValueError("Pricing name must be 1-15 characters after trimming")
+        return value
 
 
 class PricingVersionRead(PricingVersionBase, TimestampRead):
     id: int
+    revision: int
+    is_default: bool = False
+    created_date: date | None = None
+    correction_deadline: date | None = None
+    can_delete: bool = False
+    delete_block_reason: str | None = None
+    reference_count: int = 0
+
+
+class PricingImpact(BaseModel):
+    invoice_id: int
+    pricing_revision_applied: int
+    client_name: str
+    wedding_id: int
+    wedding_date: date
+    workflow_status: int
+    archived: bool
+    grand_total: Decimal
+    payment_total: Decimal
+    payment_state: Literal["unpaid", "partial", "paid"]
+
+
+class PricingPreviewRead(BaseModel):
+    action: Literal["correct", "create"]
+    target_id: int | None
+    target_revision: int | None
+    current_default_id: int | None
+    preview_date: date
+    correction_deadline: date | None
+    affected_records: list[PricingImpact]
+    confirmation_fingerprint: str
+
+
+class PricingSave(PricingVersionBase):
+    confirmed: Literal[True]
+    confirmation_fingerprint: str = Field(min_length=1)
+
+
+class PricingSaveRead(BaseModel):
+    action: Literal["correct", "create"]
+    version: PricingVersionRead
+    current_default_id: int
+    affected_records: list[PricingImpact]
+
+
+class PricingDeleteRead(BaseModel):
+    deleted_id: int
+    new_default: PricingVersionRead | None
 
 
 class InvoiceBase(ORMModel):
@@ -227,6 +259,8 @@ class InvoiceBase(ORMModel):
     timing_details: dict[str, Any]
     warnings: list[str]
     message_text: str
+    pricing_revision_applied: int
+    pricing_stale: bool
 
 
 class InvoiceRead(InvoiceBase, TimestampRead):

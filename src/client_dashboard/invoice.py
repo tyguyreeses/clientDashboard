@@ -7,7 +7,9 @@ from datetime import datetime, time, timedelta
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Any
 
-from .models import Client, PricingVersion, Wedding, WeddingPartyMember
+from sqlalchemy.orm import Session
+
+from .models import AssistantReceipt, Client, Invoice, PricingVersion, Wedding, WeddingPartyMember
 
 MONEY = Decimal("0.01")
 ZERO = Decimal("0.00")
@@ -85,6 +87,29 @@ class InvoiceCalculation:
     calculation_hash: str
     assistant_receipt: dict[str, Any] | None
     message_text: str
+
+
+def apply_invoice_calculation(
+    session: Session,
+    invoice: Invoice,
+    calculation: InvoiceCalculation,
+    pricing: PricingVersion,
+    applied_revision: int,
+):
+    invoice.pricing_version_id = pricing.id
+    invoice.pricing_revision_applied = applied_revision
+    for field in (
+        "services_total", "travel_total", "discount_total", "deposit_amount",
+        "balance_due", "grand_total", "calculation_hash", "calculation_snapshot",
+        "line_items", "timing_details", "warnings", "message_text",
+    ):
+        setattr(invoice, field, getattr(calculation, field))
+    session.flush()
+    if invoice.assistant_receipt is not None:
+        session.delete(invoice.assistant_receipt)
+        session.flush()
+    if calculation.assistant_receipt is not None:
+        session.add(AssistantReceipt(invoice_id=invoice.id, **calculation.assistant_receipt))
 
 
 def calculate_invoice(

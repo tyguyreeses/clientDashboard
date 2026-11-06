@@ -192,22 +192,15 @@ nav small {
   font-size: 13px;
   letter-spacing: 0.14em;
 }
-.welcome-row h1 {
+.welcome-row h1,
+.page-heading h1,
+.pricing-heading h1 {
   font:
     700 clamp(32px, 4vw, 51px)/1.08 "Above the Beyond",
     serif;
   letter-spacing: -0.045em;
   margin: 0;
   color: var(--color-mocha);
-}
-.wave {
-  color: var(--color-cinnamon);
-  display: inline-block;
-  font-family: "Bauer Bodoni";
-  font-size: 13px;
-  vertical-align: top;
-  margin: 1px 0 0 5px;
-  animation: float 2.7s ease-in-out infinite;
 }
 .subtitle {
   color: var(--color-dusty-rose);
@@ -1256,7 +1249,7 @@ nav small {
   padding: 16px;
   border: 1px solid var(--color-light-pink);
   border-radius: 14px;
-  background: var(--surface-translucent);
+  background: var(--color-light-pink);
 }
 .history-filters input, .history-filters select { min-width: 0; border: 1px solid var(--color-light-pink); border-radius: 8px; padding: 10px; background: var(--color-parchment); color: var(--color-mocha); font-size: 16px; }
 .history-filters label { display: grid; gap: 5px; color: var(--color-dusty-rose); font-size: 13px; font-weight: 700; }
@@ -1281,13 +1274,6 @@ nav small {
   justify-content: space-between;
   align-items: end;
   margin-bottom: 28px;
-}
-.page-heading h1 {
-  margin: 0;
-  font:
-    700 clamp(32px, 4vw, 48px)/1.08 "Above the Beyond",
-    serif;
-  letter-spacing: -0.045em;
 }
 .client-layout {
   display: grid;
@@ -1450,15 +1436,6 @@ nav small {
 .client-empty .large-initials {
   background: var(--color-parchment);
   color: var(--color-dusty-rose);
-}
-@keyframes float {
-  0%,
-  100% {
-    transform: translateY(0) rotate(0);
-  }
-  50% {
-    transform: translateY(-5px) rotate(6deg);
-  }
 }
 @keyframes fade-in {
   from {
@@ -1697,7 +1674,32 @@ nav small {
 .invoice-service-last { border-bottom: 0; }
 .invoice-total-row { font-size: 18px; color: var(--color-mocha); font-weight: 700; }
 .assistant-receipt { margin-top: 22px; padding: 14px; border-radius: 10px; background: var(--color-parchment); line-height: 1.7; }
+.pricing-page { max-width: 1100px; margin: 0 auto; padding: 2rem; width: 100%; }
+.pricing-heading { display: flex; justify-content: space-between; margin-bottom: 1.25rem; padding-bottom: .75rem; border-bottom: 2px solid var(--color-light-pink); }
+.pricing-heading h1 { margin-bottom: .25rem; }
+.pricing-heading p { color: var(--color-dusty-rose); }
+.pricing-history h2 { color: var(--color-cinnamon); }
+.pricing-form, .pricing-confirmation, .pricing-history { background: var(--surface-translucent); border: 1px solid var(--color-light-pink); border-radius: 14px; padding: 1.25rem; margin-bottom: 1rem; }
+.pricing-form label { display: grid; gap: .35rem; font-weight: 600; }
+.pricing-form input, .pricing-history select { border: 1px solid var(--color-light-pink); border-radius: 8px; padding: .65rem; background: var(--color-parchment); }
+.pricing-form input[readonly] { background: var(--color-light-pink); color: var(--color-mocha); }
+.pricing-name { max-width: 24rem; margin-bottom: 1rem; }
+.pricing-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; margin-bottom: 1.25rem; }
+.pricing-impacts { display: grid; gap: .6rem; margin: 1rem 0; }
+.pricing-impacts > div { display: grid; gap: .2rem; padding: .75rem; border-radius: 8px; background: var(--color-light-pink); }
+.pricing-actions { display: flex; justify-content: flex-end; gap: .75rem; }
+.pricing-history-controls { display: flex; align-items: center; gap: .75rem; }
+.pricing-history select { min-width: min(100%, 24rem); flex: 1; }
+.pricing-delete { margin-left: auto; padding: .65rem 1rem; border-radius: 999px; color: var(--color-parchment); background: var(--color-cinnamon); font-weight: 700; white-space: nowrap; }
+.pricing-delete:hover:not(:disabled) { background: var(--color-dusty-rose); }
+.pricing-delete:disabled { color: var(--color-dusty-rose); background: var(--color-light-pink); cursor: not-allowed; }
+.pricing-stale { border-color: var(--color-error-text); background: var(--color-error-bg); }
+
+@media (max-width: 800px) { .pricing-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
 @media (max-width: 640px) {
+  .pricing-page { padding: 1rem; }
+  .pricing-grid { grid-template-columns: 1fr; }
   .invoice-schedule, .invoice-financials { grid-template-columns: 1fr; }
 }
 .assistant-receipt h3 { margin: 0 0 6px; }

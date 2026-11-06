@@ -3,6 +3,7 @@ import { AddClientModal } from "./components/AddClientModal";
 import { Footer, Header } from "./components/Layout";
 import { HistoryPage } from "./pages/HistoryPage";
 import { ProfilePage } from "./pages/ProfilePage";
+import { PricingPage } from "./pages/PricingPage";
 import { BookingRate, KanbanBoard, Stat } from "./components/WeddingBoard";
 import { initials, json, weddingView } from "./utils";
 
@@ -173,13 +174,13 @@ export function App() {
         )}
         {page === "history" ? (
         <HistoryPage onSelect={openWedding} />
+      ) : page === "pricing" ? (
+        <PricingPage />
       ) : (
         <main className="dashboard">
           <div className="welcome-row">
             <div>
-              <h1>
-                Dashboard <span className="wave">✦</span>
-              </h1>
+              <h1>Dashboard</h1>
             </div>
             <div className="dashboard-date">
               <span className="sun-dot" />{" "}

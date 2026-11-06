@@ -17,6 +17,10 @@ def test_api_exposes_the_resources_used_by_the_dashboard(client):
         ("/payments", "post"),
         ("/weddings/{wedding_id}/payments", "get"),
         ("/weddings/{wedding_id}/invoice", "get"),
+        ("/pricing-versions", "get"),
+        ("/pricing-versions/save-preview", "post"),
+        ("/pricing-versions/save", "post"),
+        ("/pricing-versions/{pricing_version_id}", "delete"),
     }
 
     assert expected <= {
@@ -46,6 +50,16 @@ def test_core_resource_responses_have_stable_shapes(client):
     wedding_list = client.get("/weddings").json()
     assert wedding_list
     assert {"id", "client_id", "wedding_date", "status", "client"} <= wedding_list[0].keys()
+
+
+def test_pricing_and_invoice_contracts_expose_policy_metadata(client):
+    schema = client.get("/openapi.json").json()["components"]["schemas"]
+    assert {"confirmed", "confirmation_fingerprint"} <= set(schema["PricingSave"]["properties"])
+    assert schema["PricingSave"]["properties"]["confirmed"]["const"] is True
+    assert {"action", "affected_records", "confirmation_fingerprint", "preview_date"} <= set(schema["PricingPreviewRead"]["properties"])
+    assert {"deleted_id", "new_default"} <= set(schema["PricingDeleteRead"]["properties"])
+    assert {"revision", "is_default", "created_date", "correction_deadline", "can_delete"} <= set(schema["PricingVersionRead"]["properties"])
+    assert {"pricing_revision_applied", "pricing_stale"} <= set(schema["InvoiceRead"]["properties"])
 
 
 def test_api_uses_expected_http_errors_for_invalid_requests(client):

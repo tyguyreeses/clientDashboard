@@ -220,14 +220,16 @@ class WeddingPartyMember(Base):
 class PricingVersion(TimestampMixin, Base):
     __tablename__ = "pricing_versions"
     __table_args__ = (
-        Index("ix_pricing_versions_name", "name", unique=True),
+        Index("ix_pricing_versions_name_normalized", "name_normalized", unique=True),
+        CheckConstraint("length(trim(name)) > 0", name="ck_pricing_name_nonblank"),
+        CheckConstraint("length(name) <= 15", name="ck_pricing_name_max_length"),
         CheckConstraint("bride_price >= 0", name="ck_pricing_bride_price_nonnegative"),
         CheckConstraint("trial_price >= 0", name="ck_pricing_trial_price_nonnegative"),
         CheckConstraint("bridesmaid_price >= 0", name="ck_pricing_bridesmaid_price_nonnegative"),
         CheckConstraint("flowergirl_price >= 0", name="ck_pricing_flowergirl_price_nonnegative"),
         CheckConstraint("early_morning_fee >= 0", name="ck_pricing_early_morning_nonnegative"),
         CheckConstraint("assistant_fee >= 0", name="ck_pricing_assistant_fee_nonnegative"),
-        CheckConstraint("assistant_bridesmaid_cut BETWEEN 0 AND 100", name="ck_pricing_assistant_cut_percent"),
+        CheckConstraint("assistant_bridesmaid_cut >= 0", name="ck_pricing_assistant_cut_nonnegative"),
         CheckConstraint("base_travel_fee >= 0", name="ck_pricing_base_travel_nonnegative"),
         CheckConstraint("travel_fee >= 0", name="ck_pricing_travel_nonnegative"),
         CheckConstraint("deposit_percentage BETWEEN 0 AND 100", name="ck_pricing_deposit_percent"),
@@ -240,14 +242,16 @@ class PricingVersion(TimestampMixin, Base):
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    name: Mapped[str] = mapped_column(String(15), nullable=False)
+    name_normalized: Mapped[str] = mapped_column(String(100), nullable=False)
+    revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     bride_price: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     trial_price: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     bridesmaid_price: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     flowergirl_price: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     early_morning_fee: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     assistant_fee: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
-    assistant_bridesmaid_cut: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False)
+    assistant_bridesmaid_cut: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     base_travel_fee: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     travel_fee: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     deposit_percentage: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False)
@@ -295,6 +299,14 @@ class Invoice(TimestampMixin, Base):
     timing_details: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     warnings: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     message_text: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    pricing_revision_applied: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+
+    @property
+    def pricing_stale(self) -> bool:
+        return bool(
+            self.pricing_version
+            and self.pricing_revision_applied != self.pricing_version.revision
+        )
 
     wedding: Mapped[Wedding] = relationship(back_populates="invoices")
     pricing_version: Mapped[PricingVersion] = relationship(back_populates="invoices")

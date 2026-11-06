@@ -57,6 +57,7 @@ function InvoiceSummary({ wedding, invoice, invoiceWarnings, assistantReceipt, p
   return <section className="profile-subsection invoice-section">
     <div className="profile-section-title"><div><h2>Invoice summary</h2></div><button className="profile-save" onClick={() => onGenerate(invoice.pricing_version_id)} disabled={invoiceLoading}>{invoiceLoading ? "Generating…" : "Regenerate invoice"}</button></div>
     <div className="invoice-controls"><label>Pricing version<select value={invoice.pricing_version_id} disabled={invoiceLoading} onChange={(event) => onGenerate(Number(event.target.value))}>{pricingVersions.map((version) => <option key={version.id} value={version.id}>{version.name}</option>)}</select></label></div>
+    {invoice.pricing_stale && <div className="invoice-warnings pricing-stale"><strong>Pricing changed—regenerate invoice</strong></div>}
     {(invoiceWarnings?.length > 0 || invoice.warnings?.length > 0) && <div className="invoice-warnings"><strong>Invoice warnings</strong>{[...(invoiceWarnings || []), ...(invoice.warnings || [])].map((warning, index) => <div key={`${warning}-${index}`}>{warning}</div>)}</div>}
     <div className="invoice-schedule"><div><small>Start at</small><strong>{formatTime(invoice.timing_details?.start_time)}</strong></div><div><small>Ready by</small><strong>{formatTime(invoice.timing_details?.ready_by)}</strong></div><div><small>Service time</small><strong>{invoice.timing_details?.service_minutes || 0} min</strong></div></div>
     <div className="invoice-lines">

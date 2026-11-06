@@ -20,9 +20,12 @@ from .schemas import (
     PaymentCreate,
     PaymentRead,
     PaymentUpdate,
-    PricingVersionCreate,
+    PricingDeleteRead,
+    PricingPreviewRead,
+    PricingSave,
+    PricingSaveRead,
+    PricingVersionBase,
     PricingVersionRead,
-    PricingVersionUpdate,
     WeddingCreate,
     WeddingListItem,
     WeddingPartyMemberCreate,
@@ -31,6 +34,14 @@ from .schemas import (
     WeddingRead,
     WeddingStatus,
     WeddingUpdate,
+)
+from ..pricing import (
+    build_preview,
+    delete_pricing,
+    newest_pricing,
+    newest_statement,
+    pricing_metadata,
+    save_pricing,
 )
 from ..models import (
     AssistantReceipt,
@@ -83,7 +94,10 @@ def _refresh_existing_invoice(session: Session, wedding: Wedding) -> str | None:
     if pricing is None:
         return "Pricing version not found"
 
-    from ..invoice import calculate_invoice
+    from ..invoice import apply_invoice_calculation, calculate_invoice
+
+    if invoice.pricing_revision_applied != pricing.revision:
+        return "Pricing changed—regenerate invoice"
 
     # Flush source edits, but keep the transaction open so an unexpected error
     # rolls back both the edit and invoice changes together.
@@ -94,23 +108,7 @@ def _refresh_existing_invoice(session: Session, wedding: Wedding) -> str | None:
     except ValueError as exc:
         return str(exc)
 
-    invoice.services_total = calculation.services_total
-    invoice.travel_total = calculation.travel_total
-    invoice.discount_total = calculation.discount_total
-    invoice.deposit_amount = calculation.deposit_amount
-    invoice.balance_due = calculation.balance_due
-    invoice.grand_total = calculation.grand_total
-    invoice.calculation_hash = calculation.calculation_hash
-    invoice.calculation_snapshot = calculation.calculation_snapshot
-    invoice.line_items = calculation.line_items
-    invoice.timing_details = calculation.timing_details
-    invoice.warnings = calculation.warnings
-    invoice.message_text = calculation.message_text
-    if invoice.assistant_receipt is not None:
-        session.delete(invoice.assistant_receipt)
-        session.flush()
-    if calculation.assistant_receipt is not None:
-        session.add(AssistantReceipt(invoice_id=invoice.id, **calculation.assistant_receipt))
+    apply_invoice_calculation(session, invoice, calculation, pricing, invoice.pricing_revision_applied)
     return None
 
 
@@ -408,13 +406,22 @@ def delete_party_member(party_member_id: int, session: Session = Depends(get_db)
     _commit(session)
 
 
-@router.post("/pricing-versions", response_model=PricingVersionRead, status_code=status.HTTP_201_CREATED)
-def create_pricing_version(payload: PricingVersionCreate, session: Session = Depends(get_db)) -> PricingVersion:
-    version = PricingVersion(**payload.model_dump())
-    session.add(version)
-    _commit(session)
-    session.refresh(version)
-    return version
+@router.post("/pricing-versions/save-preview", response_model=PricingPreviewRead)
+def preview_pricing(payload: PricingVersionBase, session: Session = Depends(get_db)) -> dict:
+    return build_preview(session, payload.model_dump())
+
+
+@router.post("/pricing-versions/save", response_model=PricingSaveRead)
+def save_pricing_version(payload: PricingSave, session: Session = Depends(get_db)) -> dict:
+    data = payload.model_dump(exclude={"confirmed", "confirmation_fingerprint"})
+    version, preview = save_pricing(session, data, payload.confirmation_fingerprint)
+    metadata = pricing_metadata(session, version, version.id)
+    return {
+        "action": preview["action"],
+        "version": metadata,
+        "current_default_id": version.id,
+        "affected_records": preview["affected_records"],
+    }
 
 
 @router.get("/pricing-versions", response_model=list[PricingVersionRead])
@@ -422,44 +429,28 @@ def list_pricing_versions(
     session: Session = Depends(get_db),
     limit: int = Query(default=100, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
-) -> list[PricingVersion]:
-    stmt = select(PricingVersion).order_by(desc(PricingVersion.id)).offset(offset).limit(limit)
-    return list(session.scalars(stmt))
+) -> list[dict]:
+    versions = list(session.scalars(newest_statement().offset(offset).limit(limit)))
+    default_id = versions[0].id if offset == 0 and versions else (newest_pricing(session).id if newest_pricing(session) else None)
+    return [pricing_metadata(session, version, default_id) for version in versions]
 
 
 @router.get("/pricing-versions/{pricing_version_id}", response_model=PricingVersionRead)
-def get_pricing_version(pricing_version_id: int, session: Session = Depends(get_db)) -> PricingVersion:
-    return _get_or_404(session, PricingVersion, pricing_version_id, "Pricing version not found")
+def get_pricing_version(pricing_version_id: int, session: Session = Depends(get_db)) -> dict:
+    version = _get_or_404(session, PricingVersion, pricing_version_id, "Pricing version not found")
+    return pricing_metadata(session, version)
 
 
-@router.patch("/pricing-versions/{pricing_version_id}", response_model=PricingVersionRead)
-def update_pricing_version(
+@router.delete("/pricing-versions/{pricing_version_id}", response_model=PricingDeleteRead)
+def delete_pricing_version(
     pricing_version_id: int,
-    payload: PricingVersionUpdate,
+    confirmed: bool = Query(...),
+    expected_default_id: int = Query(...),
     session: Session = Depends(get_db),
-) -> PricingVersion:
-    version = _get_or_404(session, PricingVersion, pricing_version_id, "Pricing version not found")
-    if session.scalar(select(Invoice.id).where(Invoice.pricing_version_id == pricing_version_id).limit(1)) is not None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Pricing versions referenced by invoices are immutable",
-        )
-    _apply_updates(version, payload)
-    _commit(session)
-    session.refresh(version)
-    return version
-
-
-@router.delete("/pricing-versions/{pricing_version_id}", response_model=None, status_code=status.HTTP_204_NO_CONTENT)
-def delete_pricing_version(pricing_version_id: int, session: Session = Depends(get_db)) -> None:
-    version = _get_or_404(session, PricingVersion, pricing_version_id, "Pricing version not found")
-    if session.scalar(select(Invoice.id).where(Invoice.pricing_version_id == pricing_version_id).limit(1)) is not None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Pricing version is referenced by one or more invoices",
-        )
-    session.delete(version)
-    _commit(session)
+) -> dict:
+    if not confirmed:
+        raise HTTPException(status_code=422, detail="Deletion confirmation is required")
+    return delete_pricing(session, pricing_version_id, expected_default_id)
 
 
 @router.get("/invoices", response_model=list[InvoiceListItem])
@@ -470,6 +461,7 @@ def list_invoices(
 ) -> list[Invoice]:
     stmt = (
         select(Invoice)
+        .options(selectinload(Invoice.pricing_version))
         .order_by(desc(Invoice.wedding_id), desc(Invoice.id))
         .offset(offset)
         .limit(limit)
@@ -508,13 +500,13 @@ def generate_wedding_invoice(
         )
 
     if payload.pricing_version_id is None:
-        pricing = session.scalars(select(PricingVersion).order_by(desc(PricingVersion.id)).limit(1)).first()
+        pricing = newest_pricing(session)
     else:
         pricing = session.get(PricingVersion, payload.pricing_version_id)
     if pricing is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pricing version not found")
 
-    from ..invoice import calculate_invoice
+    from ..invoice import apply_invoice_calculation, calculate_invoice
 
     try:
         calculation = calculate_invoice(wedding, wedding.client, pricing, wedding.party_members)
@@ -527,25 +519,10 @@ def generate_wedding_invoice(
         invoice = Invoice(wedding_id=wedding.id)
         session.add(invoice)
 
-    invoice.pricing_version_id = pricing.id
-    invoice.services_total = calculation.services_total
-    invoice.travel_total = calculation.travel_total
-    invoice.discount_total = calculation.discount_total
-    invoice.deposit_amount = calculation.deposit_amount
-    invoice.balance_due = calculation.balance_due
-    invoice.grand_total = calculation.grand_total
-    invoice.calculation_hash = calculation.calculation_hash
-    invoice.calculation_snapshot = calculation.calculation_snapshot
-    invoice.line_items = calculation.line_items
-    invoice.timing_details = calculation.timing_details
-    invoice.warnings = calculation.warnings
-    invoice.message_text = calculation.message_text
-    session.flush()
-    if invoice.assistant_receipt is not None:
-        session.delete(invoice.assistant_receipt)
-        session.flush()
-    if calculation.assistant_receipt is not None:
-        session.add(AssistantReceipt(invoice_id=invoice.id, **calculation.assistant_receipt))
+    # Explicit regeneration is confirmation-relevant even when the calculated
+    # values happen to be identical.
+    invoice.updated_at = datetime.now(timezone.utc)
+    apply_invoice_calculation(session, invoice, calculation, pricing, pricing.revision)
     _commit(session)
     session.refresh(invoice)
     response.status_code = status.HTTP_201_CREATED if created else status.HTTP_200_OK

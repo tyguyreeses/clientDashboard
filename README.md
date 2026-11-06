@@ -6,12 +6,18 @@ Terminal 1:
 
 ```bash
 .venv/bin/python -m pip install -e .
-# Destructive local reset: drops all tables, runs Alembic migrations, and seeds default pricing
-PYTHONPATH=src .venv/bin/python -m client_dashboard.scripts.init_db
-# Normal schema upgrades (preserves existing data)
-.venv/bin/alembic upgrade head
+# Normal schema upgrade; preserves invoice totals, snapshots, and references
+PYTHONPATH=src .venv/bin/alembic upgrade head
 PYTHONPATH=src .venv/bin/python -m uvicorn client_dashboard.main:app --reload --port 8000
 ```
+
+For development or test data, a destructive reset and reseed is also available:
+
+```bash
+PYTHONPATH=src .venv/bin/python -m client_dashboard.scripts.init_db
+```
+
+The reset drops all application tables and permanently deletes their data. Do not use it against production data.
 
 Terminal 2:
 
@@ -21,173 +27,67 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:5173.
-
-## Database Structure
-
-The application uses SQLAlchemy with SQLite for local development. The database file is created at `data/client_dashboard.db` by default. The schema is intentionally normalized so wedding data, pricing data, invoices, and payments can evolve independently.
-
-### Core tables
-
-#### `clients`
-Stores the client record that starts the workflow.
-
-- `id`
-- `name`
-- `phone`
-- `email`
-- `social_media`
-- `source`
-- `inquiry_date`
-- `notes`
-- `created_at`
-- `updated_at`
-
-Indexes:
-
-- `source`
-- `inquiry_date`
-
-#### `weddings`
-Stores the wedding record and acts as the center of the business workflow.
-
-- `id`
-- `client_id`
-- `wedding_date`
-- `location`
-- `miles_one_way`
-- `ready_by`
-- `status`
-- `assistant`
-- `bridal_trial_status`
-- `created_at`
-- `updated_at`
-
-Status codes:
-
-- `0` = cancelled
-- `1` = inquired
-- `2` = responded
-- `3` = awaiting deposit
-- `4` = deposit received
-
-Bridal trial status codes:
-
-- `not_interested`
-- `interested`
-- `link_sent`
-- `booked`
-- `cancelled`
-
-Indexes:
-
-- `client_id`
-- `wedding_date`
-- `status`
-
-#### `wedding_party_members`
-Stores the services needed for each member of the wedding party.
-
-- `id`
-- `wedding_id`
-- `role`
-- `hairstyle`
-- `by_me_quantity`
-- `by_assistant_quantity`
-
-Role codes:
-
-- `B` = bride
-- `P` = bridal party
-- `J` = junior bridesmaid
-- `F` = flowergirl
-
-Hairstyle codes:
-
-- `U` = updo
-- `D` = down
-
-Indexes:
-
-- `wedding_id`
-
-#### `pricing_versions`
-Stores a versioned snapshot of pricing configuration so historical invoices are not affected by future pricing changes.
-
-- `id`
-- `name`
-- `bride_price`
-- `trial_price`
-- `bridesmaid_price`
-- `flowergirl_price`
-- `early_morning_fee`
-- `assistant_fee`
-- `assistant_bridesmaid_cut`
-- `base_travel_fee`
-- `travel_fee`
-- `deposit_percentage`
-- `travel_discount_percentage`
-- `created_at`
-- `updated_at`
-
-#### `invoices`
-Stores invoice history for a wedding. A wedding can have multiple invoices, and the latest invoice is the one with the highest `version_number` for that wedding.
-
-- `id`
-- `wedding_id`
-- `version_number`
-- `pricing_version_id`
-- `services_total`
-- `travel_total`
-- `discount_total`
-- `deposit_amount`
-- `balance_due`
-- `grand_total`
-- `created_at`
-- `updated_at`
-
-Indexes:
-
-- `wedding_id`
-- `pricing_version_id`
-- unique `wedding_id + version_number`
-
-#### `payments`
-Stores payments tied to a wedding.
-
-- `id`
-- `wedding_id`
-- `amount`
-- `payment_date`
-- `payment_method`
-- `notes`
-- `created_at`
-- `updated_at`
-
-Indexes:
-
-- `wedding_id`
-
-### Relationships
-
-- One `client` can have many `weddings`.
-- One `wedding` can have many `wedding_party_members`.
-- One `wedding` can have many `invoices`.
-- One `wedding` can have many `payments`.
-- One `pricing_version` can be referenced by many `invoices`.
-
-### Configuration
-
-- `DATABASE_URL` overrides the database connection string.
-- If `DATABASE_URL` is not set, the app uses SQLite with `SQLITE_DB_PATH` or `data/client_dashboard.db`.
-- Alembic manages incremental schema migrations. Run `.venv/bin/alembic upgrade head` to apply migrations while preserving data. The schema initializer resets the configured database, runs the migrations, seeds default pricing, and verifies the expected columns and indexes. It is destructive and intended for development/test setup only.
-
-### Verify The Schema
-
-Run:
+Open http://localhost:5173. The production frontend check must also run from `frontend/`:
 
 ```bash
-python -m client_dashboard.scripts.init_db
+npm run build
 ```
 
-That script connects to the configured database, drops and recreates all application tables, seeds default pricing, and verifies the expected tables, columns, and indexes. **This permanently deletes existing application data.** Do not run it against production data; production deployments should use a deliberate migration process instead.
+## Database structure
+
+SQLite is used by default at `data/client_dashboard.db`; `DATABASE_URL` overrides it, and `SQLITE_DB_PATH` controls the default SQLite path when `DATABASE_URL` is not set. The schema contains clients, weddings, wedding-party members, pricing versions, invoices, assistant receipts, and payments. Alembic manages incremental schema changes.
+
+A pricing version contains all prices and fees, deposit and travel-discount percentages, and service durations for the bride, bridal-party updo, bridal-party half-up/down, and flower girl. Its policy fields include:
+
+- `name`: trimmed display name, required and limited to 15 characters.
+- `name_normalized`: the trimmed, case-folded name used for case-insensitive uniqueness.
+- `revision`: starts at 1 and increases when calculation settings are corrected during the correction window.
+- `assistant_bridesmaid_cut`: nonnegative money paid per assisted bridal-party service. It is a flat amount, not a percentage, and is not capped at 100.
+
+An invoice stores its calculated totals, line items, message, calculation snapshot and hash, selected `pricing_version_id`, and `pricing_revision_applied`. The read-only `pricing_stale` value is true when the applied revision differs from the referenced pricing version's current revision. A pricing correction never changes existing invoice totals, snapshots, hashes, messages, or receipts automatically.
+
+## Pricing
+
+The **Pricing** tab is available in the top navigation after **History**. It loads the newest version into a complete editable form. Monetary fields are nonnegative, percentages are from 0 through 100, and service durations are nonnegative whole minutes; zero minutes is valid. The form requires confirmation before either correcting the current version or creating a new default.
+
+The history selector is newest first and uses `<name> - MM/DD/YYYY` labels. Older versions are readable but not editable. A referenced version or the sole version cannot be deleted. Deleting an unused current default promotes the next-newest version.
+
+Pricing uses `America/Denver` calendar dates. The creation date is day 1; saves through 11:59 PM on day 7 correct the newest version in place, while later saves create a new default version. Repeated corrections use the original creation date. Stored timestamps are UTC, including when Denver daylight-saving transitions apply.
+
+When calculation settings are corrected, confirmation lists every invoice referencing the version, including archived, completed, and paid records. It shows the client and wedding, wedding date, workflow and archive status, invoice total, payment total, and payment state. Name-only corrections do not create stale invoices.
+
+## Pricing API
+
+Arbitrary `POST /pricing-versions` and `PATCH /pricing-versions/{id}` writes are not supported. Historical versions are read-only through:
+
+- `GET /pricing-versions` — newest first, with default, revision, Denver date, correction deadline, and deletion metadata.
+- `GET /pricing-versions/{id}` — one read-only version with the same metadata.
+
+Saving uses a preview and confirmation flow:
+
+1. `POST /pricing-versions/save-preview` with the complete pricing form.
+2. `POST /pricing-versions/save` with the same form, `confirmed: true`, and the returned `confirmation_fingerprint`.
+
+The save is rejected with `409 Pricing confirmation is stale; preview again` if the form, pricing version/default, affected invoice context, payment or workflow context, or Denver calendar date changed after preview. Rejected saves do not partially update pricing.
+
+`DELETE /pricing-versions/{id}` requires `confirmed=true` and the expected current default ID. The response reports the deleted version and the new default. Backend validation enforces name, value, timing, reference, confirmation, and deletion rules; the UI is not the source of those guarantees.
+
+Invoice responses expose `pricing_revision_applied` and `pricing_stale`. Editing a client, wedding, or party member does not silently refresh a stale invoice. The persistent warning is **Pricing changed—regenerate invoice**. Explicit `POST /weddings/{id}/invoice` regeneration is required to apply the corrected pricing and clear the warning; it is also the only operation that advances a stale invoice to the selected pricing revision.
+
+## Migrations and reset
+
+Use this for normal upgrades:
+
+```bash
+PYTHONPATH=src .venv/bin/alembic upgrade head
+```
+
+Migration `20260401_0004` trims and normalizes existing pricing names, adds pricing revisions and invoice applied revisions, and preserves invoice financial fields, snapshots, hashes, and references. It stops with a clear error if existing names are blank, longer than 15 characters after trimming, or collide after case folding; resolve those names before retrying. Existing invoices are initialized as current, not stale.
+
+For development/test data only, reset and reseed with:
+
+```bash
+PYTHONPATH=src .venv/bin/python -m client_dashboard.scripts.init_db
+```
+
+This command drops all application tables, upgrades to the current Alembic head, seeds default pricing, and verifies the expected schema. It permanently deletes application data and must not be run against production data.
