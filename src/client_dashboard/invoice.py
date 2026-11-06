@@ -317,7 +317,7 @@ def calculate_invoice(
         f"\nTotal: ${decimal_string(grand_total)}",
         f"Non-refundable deposit: ${decimal_string(deposit_amount)}",
         f"Remaining balance: ${decimal_string(balance_due)}",
-        f"Balance due date: {wedding.wedding_date.isoformat()}",
+        f"Balance due date: {wedding.wedding_date.isoformat()} @ 8:00 pm",
     ])
     message_text = "\n".join(message_lines)
 

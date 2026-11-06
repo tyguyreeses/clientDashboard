@@ -65,7 +65,7 @@ function InvoiceSummary({ wedding, invoice, invoiceWarnings, assistantReceipt, p
       {feeItems.length > 0 && <><h3 className="invoice-subheading">Additional fees</h3>{feeItems.map((item, index) => <div className="invoice-line" key={`${item.description}-${index}`}><span>{item.description}</span><strong>{amount(item.total)}</strong></div>)}</>}
     </div>
     <div className="invoice-total-row"><span>Total</span><strong>${invoice.grand_total}</strong></div>
-    <div className="invoice-financials"><div><small>Non-refundable deposit</small><strong>${invoice.deposit_amount}</strong></div><div><small>Remaining balance</small><strong>${invoice.balance_due}</strong></div><div><small>Balance due date</small><strong>{formatDate(invoice.timing_details?.balance_due_date || wedding.weddingDate)}</strong></div></div>
+    <div className="invoice-financials"><div><small>Non-refundable deposit</small><strong>${invoice.deposit_amount}</strong></div><div><small>Remaining balance</small><strong>${invoice.balance_due}</strong></div><div><small>Balance due date</small><strong>{formatDate(invoice.timing_details?.balance_due_date || wedding.weddingDate)} @ 8:00 pm</strong></div></div>
     {assistantReceipt && <div className="assistant-receipt"><h3>Assistant receipt</h3><div>Total paid to assistant: ${assistantReceipt.total_paid_to_assistant}</div><div>Assisted bridal-party members: {assistantReceipt.assisted_bridesmaid_count}</div></div>}
     <div className="invoice-copy-action"><button className="profile-save" onClick={onCopy}>{copied ? "Copied" : "Copy invoice message"}</button></div>
   </section>;
