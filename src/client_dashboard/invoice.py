@@ -172,7 +172,6 @@ def calculate_invoice(
     services_total = money(bride_total + party_total + flowergirl_total)
 
     travel_total = ZERO
-    assistant_travel = ZERO
     discount_total = ZERO
     if wedding.miles_one_way is None:
         raise ValueError("Missing required fields: miles_one_way")
@@ -183,10 +182,6 @@ def calculate_invoice(
             discount_total = money(regular_travel * pricing.travel_discount_percentage / Decimal("100"))
         travel_total = regular_travel
         line_items.append(_line("Travel", 1, regular_travel, regular_travel, "fee"))
-        if effective_assistant:
-            assistant_travel = money(miles * pricing.travel_fee)
-            travel_total = money(travel_total + assistant_travel)
-            line_items.append(_line("Assistant travel fee", 1, assistant_travel, assistant_travel, "fee"))
 
     additional_fees = ZERO
     if effective_assistant:
@@ -240,12 +235,12 @@ def calculate_invoice(
             "flowergirl_price": decimal_string(pricing.flowergirl_price),
             "early_morning_fee": decimal_string(pricing.early_morning_fee),
             "assistant_fee": decimal_string(pricing.assistant_fee),
+            "assistant_cut": decimal_string(pricing.assistant_cut),
             "assistant_bridesmaid_cut": decimal_string(pricing.assistant_bridesmaid_cut),
             "base_travel_fee": decimal_string(pricing.base_travel_fee),
             "travel_fee": decimal_string(pricing.travel_fee),
             "deposit_percentage": decimal_string(pricing.deposit_percentage),
             "travel_discount_percentage": decimal_string(pricing.travel_discount_percentage),
-            "assistant_travel_fee_cut": decimal_string(pricing.assistant_travel_fee_cut),
         },
         "wedding": {
             "id": wedding.id,
@@ -280,12 +275,11 @@ def calculate_invoice(
 
     receipt = None
     if effective_assistant:
-        assistant_service_pay = money(pricing.assistant_fee - pricing.assistant_travel_fee_cut)
+        assistant_cut = money(pricing.assistant_cut)
         assistant_party_pay = money(pricing.assistant_bridesmaid_cut * assisted_party_count)
-        assistant_total = money(assistant_service_pay + assistant_party_pay + assistant_travel)
+        assistant_total = money(assistant_cut + assistant_party_pay)
         receipt = {
-            "assistant_travel": decimal_string(assistant_travel),
-            "assistant_service_pay": decimal_string(assistant_service_pay),
+            "assistant_cut": decimal_string(assistant_cut),
             "assisted_bridesmaid_count": assisted_party_count,
             "assisted_bridesmaid_pay": decimal_string(assistant_party_pay),
             "total_paid_to_assistant": decimal_string(assistant_total),

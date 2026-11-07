@@ -47,7 +47,7 @@ function TrialBoard({ status, onChange }) {
 }
 
 function InvoiceSummary({ wedding, invoice, invoiceWarnings, assistantReceipt, pricingVersions, invoiceLoading, copied, onGenerate, onCopy }) {
-  const isFee = (item) => ["fee", "discount"].includes(item.category) || ["Travel", "Assistant travel fee", "Assistant fee", "Early morning fee", "Referral travel discount"].includes(item.description);
+  const isFee = (item) => ["fee", "discount"].includes(item.category) || ["Travel", "Assistant fee", "Early morning fee", "Referral travel discount"].includes(item.description);
   const serviceItems = invoice?.line_items?.filter((item) => !isFee(item)) || [];
   const feeItems = invoice?.line_items?.filter(isFee) || [];
   const amount = (value) => String(value).startsWith("-") ? `-$${String(value).slice(1)}` : `$${value}`;
@@ -67,7 +67,15 @@ function InvoiceSummary({ wedding, invoice, invoiceWarnings, assistantReceipt, p
     </div>
     <div className="invoice-total-row"><span>Total</span><strong>${invoice.grand_total}</strong></div>
     <div className="invoice-financials"><div><small>Non-refundable deposit</small><strong>${invoice.deposit_amount}</strong></div><div><small>Remaining balance</small><strong>${invoice.balance_due}</strong></div><div><small>Balance due date</small><strong>{formatDate(invoice.timing_details?.balance_due_date || wedding.weddingDate)} @ 8:00 pm</strong></div></div>
-    {assistantReceipt && <div className="assistant-receipt"><h3>Assistant receipt</h3><div>Total paid to assistant: ${assistantReceipt.total_paid_to_assistant}</div><div>Assisted bridal-party members: {assistantReceipt.assisted_bridesmaid_count}</div></div>}
+    {assistantReceipt && <div className="assistant-receipt">
+      <h3>Assistant receipt</h3>
+      <div className="assistant-receipt-lines">
+        <div className="invoice-line"><span>Assistant travel</span><strong>${assistantReceipt.assistant_cut}</strong></div>
+        {assistantReceipt.assisted_bridesmaid_count > 0 && <div className="invoice-line"><span>Assisted bridal-party services × {assistantReceipt.assisted_bridesmaid_count}</span><strong>${assistantReceipt.assisted_bridesmaid_pay}</strong></div>}
+        <div className="invoice-total-row"><span>Total paid to assistant</span><strong>${assistantReceipt.total_paid_to_assistant}</strong></div>
+      </div>
+      <div className="assistant-takehome"><span>Business take-home</span><strong>${assistantReceipt.business_takehome}</strong></div>
+    </div>}
     <div className="invoice-copy-action"><button className="profile-save" onClick={onCopy}>{copied ? "Copied" : "Copy invoice message"}</button></div>
   </section>;
 }
@@ -170,6 +178,24 @@ export function ProfilePage({ wedding, onClose, onSaved }) {
       const result = weddingView({ ...refreshedWedding, client });
       setDraft(result);
       onSaved(result);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const removePartyMember = async (member) => {
+    if (!member.id || !window.confirm("Remove this person from the wedding?")) return;
+    setSaving(true);
+    setError("");
+    try {
+      await json(`/party-members/${member.id}`, { method: "DELETE" });
+      const partyMembers = (draft.partyMembers || []).filter((item) => item.id !== member.id);
+      const updatedDraft = { ...draft, partyMembers };
+      setDraft(updatedDraft);
+      onSaved(updatedDraft);
+      await loadInvoiceData();
     } catch (err) {
       setError(err.message);
     } finally {
@@ -381,7 +407,15 @@ export function ProfilePage({ wedding, onClose, onSaved }) {
                 </select>
               ) : <span>{HAIRSTYLE[member.hairstyle]}</span>}
               <label className="assistant-checkbox">
-                <input type="checkbox" checked={Boolean(member.assistant)} disabled={editingSection !== "wedding"} onChange={(event) => setDraft((item) => ({ ...item, partyMembers: item.partyMembers.map((old, oldIndex) => oldIndex === index ? { ...old, assistant: event.target.checked } : old) }))} />
+                <input type="checkbox" checked={Boolean(member.assistant)} disabled={editingSection !== "wedding" || saving} onChange={(event) => setDraft((item) => ({ ...item, partyMembers: item.partyMembers.map((old, oldIndex) => oldIndex === index ? { ...old, assistant: event.target.checked } : old) }))} />
+                {editingSection === "wedding" && <button
+                  type="button"
+                  className="remove-party-member"
+                  onClick={() => removePartyMember(member)}
+                  disabled={saving}
+                  aria-label={`Remove ${PARTY_ROLE[member.role] || "party member"}`}
+                  title="Remove from wedding"
+                >−</button>}
                 Assistant
               </label>
             </div>

@@ -238,7 +238,6 @@ class PricingVersion(TimestampMixin, Base):
         CheckConstraint("bridesmaid_updo_duration_minutes >= 0", name="ck_pricing_bridesmaid_updo_duration_nonnegative"),
         CheckConstraint("bridesmaid_down_duration_minutes >= 0", name="ck_pricing_bridesmaid_down_duration_nonnegative"),
         CheckConstraint("flowergirl_duration_minutes >= 0", name="ck_pricing_flowergirl_duration_nonnegative"),
-        CheckConstraint("assistant_travel_fee_cut >= 0", name="ck_pricing_assistant_travel_cut_nonnegative"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -251,6 +250,7 @@ class PricingVersion(TimestampMixin, Base):
     flowergirl_price: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     early_morning_fee: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     assistant_fee: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
+    assistant_cut: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False, default=Decimal("50.00"))
     assistant_bridesmaid_cut: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     base_travel_fee: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     travel_fee: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
@@ -260,7 +260,6 @@ class PricingVersion(TimestampMixin, Base):
     bridesmaid_updo_duration_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=30)
     bridesmaid_down_duration_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=45)
     flowergirl_duration_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=30)
-    assistant_travel_fee_cut: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False, default=Decimal("15.00"))
 
     invoices: Mapped[list[Invoice]] = relationship(back_populates="pricing_version")
 
@@ -321,8 +320,7 @@ class AssistantReceipt(TimestampMixin, Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     invoice_id: Mapped[int] = mapped_column(ForeignKey("invoices.id"), nullable=False)
-    assistant_travel: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
-    assistant_service_pay: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
+    assistant_cut: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     assisted_bridesmaid_count: Mapped[int] = mapped_column(Integer, nullable=False)
     assisted_bridesmaid_pay: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     total_paid_to_assistant: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)

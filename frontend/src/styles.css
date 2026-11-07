@@ -851,6 +851,26 @@ nav small {
   color: var(--color-dusty-rose);
   font-size: 13px;
 }
+.remove-party-member {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--color-error-text);
+  color: white;
+  font: 700 16px/1 Arial, sans-serif;
+}
+.remove-party-member:hover:not(:disabled) {
+  background: var(--color-progress-red);
+}
+.remove-party-member:disabled {
+  cursor: wait;
+  opacity: .6;
+}
 .profile-page .profile-section {
   background: var(--surface-translucent);
   border: 1px solid var(--color-light-pink);
@@ -1674,6 +1694,10 @@ nav small {
 .invoice-service-last { border-bottom: 0; }
 .invoice-total-row { font-size: 18px; color: var(--color-mocha); font-weight: 700; }
 .assistant-receipt { margin-top: 22px; padding: 14px; border-radius: 10px; background: var(--color-parchment); line-height: 1.7; }
+.assistant-receipt-lines { border-top: 1px solid var(--color-light-pink); }
+.assistant-receipt .invoice-line,
+.assistant-receipt .invoice-total-row { padding: 8px 0; }
+.assistant-takehome { display: flex; justify-content: space-between; gap: 16px; padding-top: 12px; color: var(--color-mocha); font-weight: 700; }
 .pricing-page { max-width: 1100px; margin: 0 auto; padding: 2rem; width: 100%; }
 .pricing-heading { display: flex; justify-content: space-between; margin-bottom: 1.25rem; padding-bottom: .75rem; border-bottom: 2px solid var(--color-light-pink); }
 .pricing-heading h1 { margin-bottom: .25rem; }

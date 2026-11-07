@@ -172,6 +172,7 @@ class PricingVersionBase(BaseModel):
     flowergirl_price: Decimal = Field(ge=0, max_digits=10, decimal_places=2)
     early_morning_fee: Decimal = Field(ge=0, max_digits=10, decimal_places=2)
     assistant_fee: Decimal = Field(ge=0, max_digits=10, decimal_places=2)
+    assistant_cut: Decimal = Field(ge=0, max_digits=10, decimal_places=2)
     assistant_bridesmaid_cut: Decimal = Field(ge=0, max_digits=10, decimal_places=2)
     base_travel_fee: Decimal = Field(ge=0, max_digits=10, decimal_places=2)
     travel_fee: Decimal = Field(ge=0, max_digits=10, decimal_places=2)
@@ -181,7 +182,6 @@ class PricingVersionBase(BaseModel):
     bridesmaid_updo_duration_minutes: int = Field(ge=0)
     bridesmaid_down_duration_minutes: int = Field(ge=0)
     flowergirl_duration_minutes: int = Field(ge=0)
-    assistant_travel_fee_cut: Decimal = Field(ge=0, max_digits=10, decimal_places=2)
 
     @field_validator("name")
     @classmethod
@@ -275,8 +275,7 @@ class InvoiceListItem(InvoiceBase, TimestampRead):
 class AssistantReceiptRead(ORMModel):
     id: int
     invoice_id: int
-    assistant_travel: Decimal
-    assistant_service_pay: Decimal
+    assistant_cut: Decimal
     assisted_bridesmaid_count: int
     assisted_bridesmaid_pay: Decimal
     total_paid_to_assistant: Decimal

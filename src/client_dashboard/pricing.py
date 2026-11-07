@@ -15,11 +15,11 @@ from .models import Client, Invoice, Payment, PricingVersion, Wedding
 DENVER = ZoneInfo("America/Denver")
 PRICING_CALCULATION_FIELDS = (
     "bride_price", "trial_price", "bridesmaid_price", "flowergirl_price",
-    "early_morning_fee", "assistant_fee", "assistant_bridesmaid_cut",
+    "early_morning_fee", "assistant_fee", "assistant_cut", "assistant_bridesmaid_cut",
     "base_travel_fee", "travel_fee", "deposit_percentage",
     "travel_discount_percentage", "bride_duration_minutes",
     "bridesmaid_updo_duration_minutes", "bridesmaid_down_duration_minutes",
-    "flowergirl_duration_minutes", "assistant_travel_fee_cut",
+    "flowergirl_duration_minutes",
 )
 
 
