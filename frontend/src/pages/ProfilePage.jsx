@@ -67,6 +67,7 @@ function InvoiceSummary({ wedding, invoice, invoiceWarnings, assistantReceipt, p
     </div>
     <div className="invoice-total-row"><span>Total</span><strong>${invoice.grand_total}</strong></div>
     <div className="invoice-financials"><div><small>Non-refundable deposit</small><strong>${invoice.deposit_amount}</strong></div><div><small>Remaining balance</small><strong>${invoice.balance_due}</strong></div><div><small>Balance due date</small><strong>{formatDate(invoice.timing_details?.balance_due_date || wedding.weddingDate)} @ 8:00 pm</strong></div></div>
+    <div className="invoice-copy-action"><button className="profile-save" onClick={onCopy}>{copied ? "Copied" : "Copy invoice message"}</button></div>
     {assistantReceipt && <div className="assistant-receipt">
       <h3>Assistant receipt</h3>
       <div className="assistant-receipt-lines">
@@ -76,7 +77,6 @@ function InvoiceSummary({ wedding, invoice, invoiceWarnings, assistantReceipt, p
       </div>
       <div className="assistant-takehome"><span>Business take-home</span><strong>${assistantReceipt.business_takehome}</strong></div>
     </div>}
-    <div className="invoice-copy-action"><button className="profile-save" onClick={onCopy}>{copied ? "Copied" : "Copy invoice message"}</button></div>
   </section>;
 }
 
@@ -84,6 +84,7 @@ export function ProfilePage({ wedding, onClose, onSaved }) {
   const [draft, setDraft] = useState(wedding);
   const [editingSection, setEditingSection] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [removedPartyMemberIds, setRemovedPartyMemberIds] = useState([]);
   const [error, setError] = useState("");
   const [invoice, setInvoice] = useState(null);
   const [assistantReceipt, setAssistantReceipt] = useState(null);
@@ -185,22 +186,20 @@ export function ProfilePage({ wedding, onClose, onSaved }) {
     }
   };
 
-  const removePartyMember = async (member) => {
-    if (!member.id || !window.confirm("Remove this person from the wedding?")) return;
-    setSaving(true);
-    setError("");
-    try {
-      await json(`/party-members/${member.id}`, { method: "DELETE" });
-      const partyMembers = (draft.partyMembers || []).filter((item) => item.id !== member.id);
-      const updatedDraft = { ...draft, partyMembers };
-      setDraft(updatedDraft);
-      onSaved(updatedDraft);
-      await loadInvoiceData();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setSaving(false);
+  const removePartyMember = (member) => {
+    if (member.id != null) {
+      setRemovedPartyMemberIds((current) => current.includes(member.id) ? current : [...current, member.id]);
     }
+    setDraft((current) => ({
+      ...current,
+      partyMembers: current.partyMembers.filter((item) => item !== member),
+    }));
+  };
+
+  const cancelEditing = () => {
+    setDraft(wedding);
+    setRemovedPartyMemberIds([]);
+    setEditingSection(null);
   };
 
   const save = async () => {
@@ -242,7 +241,7 @@ export function ProfilePage({ wedding, onClose, onSaved }) {
       ]);
       const members = draft.partyMembers || [];
       const updatedMembers = await Promise.all(
-        members.map((member) =>
+        members.filter((member) => member.id != null).map((member) =>
           json(`/party-members/${member.id}`, {
             method: "PATCH",
             body: JSON.stringify({
@@ -253,16 +252,31 @@ export function ProfilePage({ wedding, onClose, onSaved }) {
           }),
         ),
       );
+      const createdMembers = await Promise.all(
+        members.filter((member) => member.id == null).map((member) =>
+          json(`/weddings/${draft.id}/party-members`, {
+            method: "POST",
+            body: JSON.stringify({ role: member.role, hairstyle: member.hairstyle, assistant: Boolean(member.assistant) }),
+          }),
+        ),
+      );
+      await Promise.all(
+        removedPartyMemberIds.map((memberId) =>
+          json(`/party-members/${memberId}`, { method: "DELETE" }),
+        ),
+      );
       const refreshedWedding = await json(`/weddings/${draft.id}`);
       setInvoiceWarnings([
         ...(client.invoice_warnings || []),
         ...(updatedWedding.invoice_warnings || []),
         ...updatedMembers.flatMap((member) => member.invoice_warnings || []),
+        ...createdMembers.flatMap((member) => member.invoice_warnings || []),
       ]);
       await loadInvoiceData();
       const result = weddingView({ ...refreshedWedding, client });
       onSaved(result);
       setDraft(result);
+      setRemovedPartyMemberIds([]);
       setEditingSection(null);
     } catch (err) {
       setError(err.message);
@@ -327,7 +341,7 @@ export function ProfilePage({ wedding, onClose, onSaved }) {
           {editingSection === "header" ? (
             <>
               <button className="profile-save" onClick={save} disabled={saving}>{saving ? "Saving…" : "Save"}</button>
-              <button className="profile-cancel" onClick={() => { setDraft(wedding); setEditingSection(null); }}>Cancel</button>
+              <button className="profile-cancel" onClick={cancelEditing}>Cancel</button>
             </>
           ) : <button className="profile-save" onClick={() => setEditingSection("header")}>Edit</button>}
         </div>
@@ -337,7 +351,7 @@ export function ProfilePage({ wedding, onClose, onSaved }) {
       <div className="profile-subsection trial-section">
         <div className="profile-section-title">
           <div><h2>Wedding details</h2></div>
-          {editingSection === "wedding" ? <div className="section-actions"><button className="profile-save" onClick={save} disabled={saving}>{saving ? "Saving…" : "Save"}</button><button className="profile-cancel" onClick={() => { setDraft(wedding); setEditingSection(null); }}>Cancel</button></div> : <button className="profile-save" onClick={() => setEditingSection("wedding")}>Edit</button>}
+          {editingSection === "wedding" ? <div className="section-actions"><button className="profile-save" onClick={save} disabled={saving}>{saving ? "Saving…" : "Save"}</button><button className="profile-cancel" onClick={cancelEditing}>Cancel</button></div> : <button className="profile-save" onClick={() => setEditingSection("wedding")}>Edit</button>}
         </div>
         <div className="detail-grid">
           {editingSection === "wedding" ? (
@@ -408,19 +422,30 @@ export function ProfilePage({ wedding, onClose, onSaved }) {
               ) : <span>{HAIRSTYLE[member.hairstyle]}</span>}
               <label className="assistant-checkbox">
                 <input type="checkbox" checked={Boolean(member.assistant)} disabled={editingSection !== "wedding" || saving} onChange={(event) => setDraft((item) => ({ ...item, partyMembers: item.partyMembers.map((old, oldIndex) => oldIndex === index ? { ...old, assistant: event.target.checked } : old) }))} />
-                {editingSection === "wedding" && <button
-                  type="button"
-                  className="remove-party-member"
-                  onClick={() => removePartyMember(member)}
-                  disabled={saving}
-                  aria-label={`Remove ${PARTY_ROLE[member.role] || "party member"}`}
-                  title="Remove from wedding"
-                >−</button>}
                 Assistant
               </label>
+              {editingSection === "wedding" && <button
+                type="button"
+                className="remove-party-member"
+                onClick={() => removePartyMember(member)}
+                disabled={saving}
+                aria-label={`Remove ${PARTY_ROLE[member.role] || "party member"}`}
+                title="Remove from wedding"
+              >−</button>}
             </div>
           ))}
           {!draft.partyMembers?.length && <p className="muted">No party members added.</p>}
+          {editingSection === "wedding" && <button
+            type="button"
+            className="add-party-member"
+            onClick={() => setDraft((current) => ({
+              ...current,
+              partyMembers: [...(current.partyMembers || []), { role: "P", hairstyle: "D", assistant: false }],
+            }))}
+            disabled={saving}
+            aria-label="Add bridal party member"
+            title="Add bridal party member"
+          >+</button>}
         </div>
       </div>
 
@@ -439,7 +464,7 @@ export function ProfilePage({ wedding, onClose, onSaved }) {
       <div className="profile-subsection">
         <div className="profile-section-title">
           <div><h2>Additional details</h2></div>
-          {editingSection === "additional" ? <div className="section-actions"><button className="profile-save" onClick={save} disabled={saving}>{saving ? "Saving…" : "Save"}</button><button className="profile-cancel" onClick={() => { setDraft(wedding); setEditingSection(null); }}>Cancel</button></div> : <button className="profile-save" onClick={() => setEditingSection("additional")}>Edit</button>}
+          {editingSection === "additional" ? <div className="section-actions"><button className="profile-save" onClick={save} disabled={saving}>{saving ? "Saving…" : "Save"}</button><button className="profile-cancel" onClick={cancelEditing}>Cancel</button></div> : <button className="profile-save" onClick={() => setEditingSection("additional")}>Edit</button>}
         </div>
         <div className="detail-grid">
           {editingSection === "additional" ? <Editable label="Source" value={draft.source} onChange={(value) => update("source", value)} /> : <Detail label="Source" value={draft.source} />}
