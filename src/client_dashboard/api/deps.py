@@ -3,6 +3,7 @@ from __future__ import annotations
 import hmac
 from collections.abc import Generator
 from datetime import datetime, timezone
+from urllib.parse import urlparse
 
 from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
@@ -46,7 +47,11 @@ def require_csrf(request: Request, user: User = Depends(require_admin_user)) -> 
         settings = get_settings()
         origin = request.headers.get("origin")
         referer = request.headers.get("referer", "")
-        if origin != settings.frontend_origin or (referer and not referer.startswith(settings.frontend_origin)):
+        referer_origin = ""
+        if referer:
+            parsed = urlparse(referer)
+            referer_origin = f"{parsed.scheme}://{parsed.netloc}"
+        if origin != settings.frontend_origin or (referer and referer_origin != settings.frontend_origin):
             raise HTTPException(status_code=403, detail="Invalid request origin")
         session: AuthSession = request.state.auth_session
         csrf = request.headers.get("X-CSRF-Token", "")

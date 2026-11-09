@@ -47,7 +47,7 @@ def get_settings() -> Settings:
         bootstrap_enabled=os.getenv("AUTH_BOOTSTRAP_ENABLED", "false").lower() == "true",
     )
     if environment != "test":
-        if len(settings.session_secret.encode()) < 32 or settings.frontend_origin != origin or not settings.callback_url.startswith(origin):
+        if len(settings.session_secret.encode()) < 32 or settings.frontend_origin != origin or settings.callback_url != f"{origin}/api/auth/google/callback":
             raise RuntimeError("Invalid authentication configuration")
         if any(value.startswith("test-") or not value for value in (settings.google_client_id, settings.google_client_secret)):
             raise RuntimeError("Google OAuth credentials are required")
