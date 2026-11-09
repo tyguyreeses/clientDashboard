@@ -114,10 +114,18 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
         from authlib.integrations.httpx_client import AsyncOAuth2Client
         settings = get_settings()
         async with AsyncOAuth2Client(settings.google_client_id, settings.google_client_secret) as client:
-            metadata = await client.fetch_server_metadata("https://accounts.google.com/.well-known/openid-configuration")
+            metadata_response = await client.request(
+                "GET",
+                "https://accounts.google.com/.well-known/openid-configuration",
+                withhold_token=True,
+            )
+            metadata_response.raise_for_status()
+            metadata = metadata_response.json()
             client.server_metadata = metadata
-            token = await client.fetch_token(metadata["token_endpoint"], code=request.query_params.get("code", ""), redirect_uri=settings.callback_url, code_verifier=details["verifier"])
-            claims = await client.parse_id_token(token, nonce=details["nonce"])
+            await client.fetch_token(metadata["token_endpoint"], code=request.query_params.get("code", ""), redirect_uri=settings.callback_url, code_verifier=details["verifier"])
+            userinfo_response = await client.get(metadata["userinfo_endpoint"])
+            userinfo_response.raise_for_status()
+            claims = userinfo_response.json()
     except Exception:
         audit(db, "login_rejected", "failed")
         db.commit()
@@ -144,6 +152,9 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
         _set_flash(response, "unauthorized")
         _clear_attempt(response)
         return response
+    # Bootstrap creates the user in this transaction; flush before using its
+    # database-generated ID to create the first session.
+    db.flush()
     token_value, _, _session = create_session(db, user)
     user.last_login_at = now()
     audit(db, "login_success", "ok", user.id)
