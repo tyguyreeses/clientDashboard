@@ -1,5 +1,13 @@
 from __future__ import annotations
 
+from datetime import datetime
+import sqlite3
+
+# Python 3.12+ deprecates sqlite3's implicit datetime adapter. Register an
+# explicit ISO-8601 adapter so every SQLite engine, including test engines,
+# binds authentication and business timestamps without the deprecation warning.
+sqlite3.register_adapter(datetime, lambda value: value.isoformat(" "))
+
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
