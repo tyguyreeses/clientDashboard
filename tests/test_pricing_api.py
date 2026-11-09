@@ -28,7 +28,7 @@ def pricing_payload(name: str = "Spring 2026", **overrides):
         "travel_fee": "0.75",
         "deposit_percentage": "50.00",
         "travel_discount_percentage": "20.00",
-        "assistant_travel_fee_cut": "15.00",
+        "assistant_cut": "50.00",
         "bride_duration_minutes": 75,
         "bridesmaid_updo_duration_minutes": 30,
         "bridesmaid_down_duration_minutes": 45,
@@ -100,12 +100,12 @@ def create_invoice(client, pricing_id: int, *, name="Affected Client", status=1,
     return client_id, wedding_id, response.json()["invoice"]
 
 
-def test_pricing_workflow_is_the_only_public_write_contract(client):
-    paths = client.get("/openapi.json").json()["paths"]
-    assert "post" in paths["/pricing-versions/save-preview"]
-    assert "post" in paths["/pricing-versions/save"]
-    assert "post" not in paths["/pricing-versions"]
-    assert "patch" not in paths["/pricing-versions/{pricing_version_id}"]
+def test_pricing_workflow_exposes_only_save_endpoints(client):
+    payload = pricing_payload()
+    preview = client.post("/pricing-versions/save-preview", json=payload)
+    assert preview.status_code == 200
+    assert client.post("/pricing-versions", json=payload).status_code == 405
+    assert client.patch("/pricing-versions/1", json=payload).status_code == 405
 
 
 def test_complete_validation_and_invalid_requests_are_atomic(client):
@@ -116,7 +116,7 @@ def test_complete_validation_and_invalid_requests_are_atomic(client):
         {key: value for key, value in valid.items() if key != "travel_fee"},
         {**valid, "bride_price": "-0.01"},
         {**valid, "assistant_bridesmaid_cut": "-0.01"},
-        {**valid, "assistant_travel_fee_cut": "-0.01"},
+        {**valid, "assistant_cut": "-0.01"},
         {**valid, "deposit_percentage": "100.01"},
         {**valid, "travel_discount_percentage": "-0.01"},
         {**valid, "bride_duration_minutes": -1},

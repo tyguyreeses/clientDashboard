@@ -142,7 +142,7 @@ def _pricing_payload(name: str, **overrides):
         "travel_fee": "0.75",
         "deposit_percentage": "50",
         "travel_discount_percentage": "20",
-        "assistant_travel_fee_cut": "15",
+        "assistant_cut": "50",
         "bride_duration_minutes": 75,
         "bridesmaid_updo_duration_minutes": 30,
         "bridesmaid_down_duration_minutes": 45,
@@ -205,7 +205,7 @@ def test_invoice_generation_message_and_assistant_receipt(client):
     assert generated.status_code == 201
     invoice = generated.json()["invoice"]
 
-    assert invoice["grand_total"] == "329.50"
+    assert invoice["grand_total"] == "322.00"
     assert "Bridal trial: charged separately" in invoice["message_text"]
     assert invoice["warnings"] == []
     assert invoice["timing_details"]["start_time"] == "07:30"
@@ -217,7 +217,7 @@ def test_invoice_generation_message_and_assistant_receipt(client):
 
     receipt = client.get(f"/invoices/{invoice['id']}/assistant-receipt")
     assert receipt.status_code == 200
-    assert receipt.json()["total_paid_to_assistant"] == "107.50"
+    assert receipt.json()["total_paid_to_assistant"] == "125.00"
 
 
 def test_invoice_overwrites_for_pricing_selection_and_has_no_version(client, db_session_factory):
