@@ -2,22 +2,40 @@
 
 ## Run
 
-Terminal 1:
+Install dependencies and configure the environment before starting the backend:
 
 ```bash
 .venv/bin/python -m pip install -e .
-# Normal schema upgrade; preserves invoice totals, snapshots, and references
+cp .env.example .env.local
+```
+
+For local development, set these values in `.env.local`:
+
+```env
+APP_ENV=development
+FRONTEND_ORIGIN=http://localhost:5173
+GOOGLE_CALLBACK_URL=http://localhost:5173/api/auth/google/callback
+GOOGLE_ALLOWED_EMAIL=heymaddie@hairbymaddieee.com
+AUTH_BOOTSTRAP_ENABLED=true
+```
+
+Set a real Google OAuth client ID and secret, and generate a random `SESSION_SECRET` of at least 32 bytes. Add this exact URI to the Google OAuth client's authorized redirect URIs:
+
+```text
+http://localhost:5173/api/auth/google/callback
+```
+
+The application uses a server-side OAuth callback; an authorized JavaScript origin is not required.
+
+Terminal 1:
+
+```bash
+set -a
+source .env.local
+set +a
 PYTHONPATH=src .venv/bin/alembic upgrade head
 PYTHONPATH=src .venv/bin/python -m uvicorn client_dashboard.main:app --reload --port 8000
 ```
-
-For development or test data, a destructive reset and reseed is also available:
-
-```bash
-PYTHONPATH=src .venv/bin/python -m client_dashboard.scripts.init_db
-```
-
-The reset drops all application tables and permanently deletes their data. Do not use it against production data.
 
 Terminal 2:
 
@@ -27,7 +45,17 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:5173. The production frontend check must also run from `frontend/`:
+Open http://localhost:5173. After the first successful admin login, set `AUTH_BOOTSTRAP_ENABLED=false` in `.env.local` and restart the backend. Never leave bootstrap mode enabled after initial provisioning.
+
+For development or test data, a destructive reset and reseed is also available:
+
+```bash
+PYTHONPATH=src .venv/bin/python -m client_dashboard.scripts.init_db
+```
+
+The reset drops all application tables and permanently deletes their data. Do not use it against production data.
+
+The production frontend check must also run from `frontend/`:
 
 ```bash
 npm run build
@@ -35,7 +63,7 @@ npm run build
 
 ## Database structure
 
-SQLite is used by default at `data/client_dashboard.db`; `DATABASE_URL` overrides it, and `SQLITE_DB_PATH` controls the default SQLite path when `DATABASE_URL` is not set. The schema contains clients, weddings, wedding-party members, pricing versions, invoices, assistant receipts, and payments. Alembic manages incremental schema changes.
+SQLite is used by default at `data/client_dashboard.db`; `DATABASE_URL` overrides it, and `SQLITE_DB_PATH` controls the default SQLite path when `DATABASE_URL` is not set. The schema contains clients, weddings, wedding-party members, pricing versions, invoices, assistant receipts, payments, and server-side authentication records. Alembic manages incremental schema changes. A fresh migration upgrade seeds the default pricing version when no pricing records exist.
 
 A pricing version contains all prices and fees, deposit and travel-discount percentages, and service durations for the bride, bridal-party updo, bridal-party half-up/down, and flower girl. Its policy fields include:
 
@@ -82,7 +110,7 @@ Use this for normal upgrades:
 PYTHONPATH=src .venv/bin/alembic upgrade head
 ```
 
-Migration `20260401_0004` trims and normalizes existing pricing names, adds pricing revisions and invoice applied revisions, and preserves invoice financial fields, snapshots, hashes, and references. It stops with a clear error if existing names are blank, longer than 15 characters after trimming, or collide after case folding; resolve those names before retrying. Existing invoices are initialized as current, not stale.
+Migration `20260401_0004` trims and normalizes existing pricing names, adds pricing revisions and invoice applied revisions, and preserves invoice financial fields, snapshots, hashes, and references. Migration `20260401_0008` seeds the default pricing version on an empty pricing table without replacing existing pricing data. It stops with a clear error if existing names are blank, longer than 15 characters after trimming, or collide after case folding; resolve those names before retrying. Existing invoices are initialized as current, not stale.
 
 For development/test data only, reset and reseed with:
 
