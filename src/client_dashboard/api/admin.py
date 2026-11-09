@@ -1,0 +1,600 @@
+from __future__ import annotations
+
+from datetime import date, datetime, timezone
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from sqlalchemy import Select, desc, select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session, selectinload
+
+from .deps import get_db, require_csrf
+from .schemas import (
+    AssistantReceiptRead,
+    ClientCreate,
+    ClientRead,
+    ClientUpdate,
+    InvoiceGenerationRequest,
+    InvoiceGenerationResponse,
+    InvoiceListItem,
+    InvoiceRead,
+    PaymentCreate,
+    PaymentRead,
+    PaymentUpdate,
+    PricingDeleteRead,
+    PricingPreviewRead,
+    PricingSave,
+    PricingSaveRead,
+    PricingVersionBase,
+    PricingVersionRead,
+    WeddingCreate,
+    WeddingListItem,
+    WeddingPartyMemberCreate,
+    WeddingPartyMemberRead,
+    WeddingPartyMemberUpdate,
+    WeddingRead,
+    WeddingStatus,
+    WeddingUpdate,
+)
+from ..pricing import (
+    build_preview,
+    delete_pricing,
+    newest_pricing,
+    newest_statement,
+    pricing_metadata,
+    save_pricing,
+)
+from ..models import (
+    AssistantReceipt,
+    Client,
+    Invoice,
+    Payment,
+    PricingVersion,
+    Wedding,
+    WeddingPartyMember,
+    WeddingStatusProgress,
+)
+
+router = APIRouter(prefix="/api/admin", dependencies=[Depends(require_csrf)])
+
+
+def _commit(session: Session) -> None:
+    try:
+        session.commit()
+    except IntegrityError as exc:
+        session.rollback()
+        message = str(exc.orig).lower()
+        if "unique constraint failed" in message:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Duplicate record") from exc
+        if "foreign key constraint failed" in message:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid reference") from exc
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid data") from exc
+    except Exception:
+        session.rollback()
+        raise
+
+
+def _get_or_404(session: Session, model: type, object_id: int, detail: str):
+    obj = session.get(model, object_id)
+    if obj is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=detail)
+    return obj
+
+
+def _apply_updates(obj, data) -> None:
+    for field, value in data.model_dump(exclude_unset=True).items():
+        setattr(obj, field, value)
+
+
+def _refresh_existing_invoice(session: Session, wedding: Wedding) -> str | None:
+    """Recalculate an existing invoice without committing the surrounding edit."""
+    invoice = session.scalar(select(Invoice).where(Invoice.wedding_id == wedding.id))
+    if invoice is None:
+        return None
+    pricing = session.get(PricingVersion, invoice.pricing_version_id)
+    if pricing is None:
+        return "Pricing version not found"
+
+    from ..invoice import apply_invoice_calculation, calculate_invoice
+
+    if invoice.pricing_revision_applied != pricing.revision:
+        return "Pricing changed—regenerate invoice"
+
+    # Flush source edits, but keep the transaction open so an unexpected error
+    # rolls back both the edit and invoice changes together.
+    session.flush()
+    members = list(session.scalars(select(WeddingPartyMember).where(WeddingPartyMember.wedding_id == wedding.id)))
+    try:
+        calculation = calculate_invoice(wedding, wedding.client, pricing, members)
+    except ValueError as exc:
+        return str(exc)
+
+    apply_invoice_calculation(session, invoice, calculation, pricing, invoice.pricing_revision_applied)
+    return None
+
+
+def _wedding_query(
+    session: Session,
+    *,
+    status_filter: WeddingStatus | None = None,
+    wedding_date: date | None = None,
+    client_id: int | None = None,
+    source: str | None = None,
+    include_archived: bool = False,
+) -> Select[tuple[Wedding]]:
+    query = select(Wedding).options(
+        selectinload(Wedding.client),
+        selectinload(Wedding.party_members),
+        selectinload(Wedding.status_progress),
+    )
+    if source is not None:
+        query = query.join(Wedding.client)
+    if status_filter is not None:
+        query = query.where(Wedding.status == status_filter)
+    if wedding_date is not None:
+        query = query.where(Wedding.wedding_date == wedding_date)
+    if client_id is not None:
+        query = query.where(Wedding.client_id == client_id)
+    if source is not None:
+        query = query.where(Client.source == source)
+    if not include_archived:
+        query = query.where(Wedding.client.has(Client.archived.is_(False)))
+    return query.order_by(desc(Wedding.wedding_date), desc(Wedding.id))
+
+
+@router.post("/clients", response_model=ClientRead, status_code=status.HTTP_201_CREATED)
+def create_client(payload: ClientCreate, session: Session = Depends(get_db)) -> Client:
+    client = Client(**payload.model_dump())
+    session.add(client)
+    _commit(session)
+    session.refresh(client)
+    return client
+
+
+@router.get("/clients", response_model=list[ClientRead])
+def list_clients(
+    session: Session = Depends(get_db),
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+    include_archived: bool = Query(default=False),
+) -> list[Client]:
+    stmt = select(Client)
+    if not include_archived:
+        stmt = stmt.where(Client.archived.is_(False))
+    stmt = stmt.order_by(Client.name, Client.id).offset(offset).limit(limit)
+    return list(session.scalars(stmt))
+
+
+@router.get("/clients/{client_id}", response_model=ClientRead)
+def get_client(client_id: int, session: Session = Depends(get_db)) -> Client:
+    return _get_or_404(session, Client, client_id, "Client not found")
+
+
+@router.patch("/clients/{client_id}", response_model=ClientRead)
+def update_client(client_id: int, payload: ClientUpdate, session: Session = Depends(get_db)) -> Client:
+    client = _get_or_404(session, Client, client_id, "Client not found")
+    updates = payload.model_dump(exclude_unset=True)
+    _apply_updates(client, payload)
+    if not ({"name", "is_referral"} & updates.keys()):
+        _commit(session)
+        session.refresh(client)
+        return client
+    weddings = session.scalars(
+        select(Wedding)
+        .options(
+            selectinload(Wedding.client),
+            selectinload(Wedding.party_members),
+            selectinload(Wedding.status_progress),
+        )
+        .where(Wedding.client_id == client.id)
+    ).all()
+    warnings = []
+    for wedding in weddings:
+        warning = _refresh_existing_invoice(session, wedding)
+        if warning:
+            warnings.append(warning)
+    _commit(session)
+    session.refresh(client)
+    client.invoice_warnings = warnings
+    return client
+
+
+@router.delete("/clients/{client_id}", response_model=None, status_code=status.HTTP_204_NO_CONTENT)
+def delete_client(client_id: int, session: Session = Depends(get_db)) -> None:
+    client = _get_or_404(session, Client, client_id, "Client not found")
+    session.delete(client)
+    _commit(session)
+
+
+@router.post("/weddings", response_model=WeddingRead, status_code=status.HTTP_201_CREATED)
+def create_wedding(payload: WeddingCreate, session: Session = Depends(get_db)) -> Wedding:
+    _get_or_404(session, Client, payload.client_id, "Client not found")
+    initial_count = payload.hair_service_count or 0
+    wedding = Wedding(**payload.model_dump(exclude={"hair_service_count"}))
+    session.add(wedding)
+    session.flush()
+    session.add(
+        WeddingStatusProgress(
+            wedding_id=wedding.id,
+            status=wedding.status,
+            forward_entered_at=wedding.created_at,
+        )
+    )
+    for index in range(initial_count):
+        session.add(
+            WeddingPartyMember(
+                wedding_id=wedding.id,
+                role=(
+                    WeddingPartyMember.ROLE_BRIDE
+                    if index == 0
+                    else WeddingPartyMember.ROLE_BRIDAL_PARTY
+                ),
+                hairstyle=(
+                    WeddingPartyMember.HAIRSTYLE_UPDO
+                    if index == 0
+                    else WeddingPartyMember.HAIRSTYLE_DOWN
+                ),
+                assistant=False,
+            )
+        )
+    _commit(session)
+    session.refresh(wedding)
+    return _get_wedding_detail(session, wedding.id)
+
+
+def _get_wedding_detail(session: Session, wedding_id: int) -> Wedding:
+    stmt = (
+        select(Wedding)
+        .options(
+            selectinload(Wedding.client),
+            selectinload(Wedding.party_members),
+            selectinload(Wedding.status_progress),
+        )
+        .where(Wedding.id == wedding_id)
+    )
+    wedding = session.scalars(stmt).first()
+    if wedding is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Wedding not found")
+    return wedding
+
+
+@router.get("/weddings", response_model=list[WeddingListItem])
+def list_weddings(
+    session: Session = Depends(get_db),
+    status_filter: WeddingStatus | None = Query(default=None, alias="status"),
+    wedding_date: date | None = None,
+    client_id: int | None = None,
+    source: str | None = None,
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+    include_archived: bool = Query(default=False),
+) -> list[Wedding]:
+    stmt = _wedding_query(
+        session,
+        status_filter=status_filter,
+        wedding_date=wedding_date,
+        client_id=client_id,
+        source=source,
+        include_archived=include_archived,
+    )
+    return list(session.scalars(stmt.offset(offset).limit(limit)))
+
+
+@router.get("/weddings/{wedding_id}", response_model=WeddingRead)
+def get_wedding(wedding_id: int, session: Session = Depends(get_db)) -> Wedding:
+    return _get_wedding_detail(session, wedding_id)
+
+
+@router.patch("/weddings/{wedding_id}", response_model=WeddingRead)
+def update_wedding(wedding_id: int, payload: WeddingUpdate, session: Session = Depends(get_db)) -> Wedding:
+    wedding = _get_or_404(session, Wedding, wedding_id, "Wedding not found")
+    updates = payload.model_dump(exclude_unset=True)
+    previous_status = wedding.status
+    next_status = updates.get("status")
+    if next_status is not None and next_status > previous_status:
+        progress = session.scalar(
+            select(WeddingStatusProgress).where(
+                WeddingStatusProgress.wedding_id == wedding.id,
+                WeddingStatusProgress.status == next_status,
+            )
+        )
+        now = datetime.now(timezone.utc)
+        if progress is None:
+            progress = WeddingStatusProgress(
+                wedding_id=wedding.id,
+                status=next_status,
+                forward_entered_at=now,
+            )
+            session.add(progress)
+        else:
+            progress.forward_entered_at = now
+    if updates.get("status") in (Wedding.STATUS_CANCELLED, Wedding.STATUS_COMPLETED):
+        wedding.client.archived = True
+    if updates.get("status") == Wedding.STATUS_RESPONDED and wedding.invoice_sent_at is None:
+        updates["invoice_sent_at"] = datetime.now(timezone.utc)
+    if "client_id" in updates:
+        _get_or_404(session, Client, updates["client_id"], "Client not found")
+    for field, value in updates.items():
+        setattr(wedding, field, value)
+    wedding = _get_wedding_detail(session, wedding_id)
+    invoice_warning = None
+    if {"wedding_date", "address", "city", "venue", "ready_by", "miles_one_way", "assistant", "bridal_trial_status"} & updates.keys():
+        invoice_warning = _refresh_existing_invoice(session, wedding)
+    _commit(session)
+    result = _get_wedding_detail(session, wedding_id)
+    if invoice_warning:
+        result.invoice_warnings = [invoice_warning]
+    return result
+
+
+@router.delete("/weddings/{wedding_id}", response_model=None, status_code=status.HTTP_204_NO_CONTENT)
+def delete_wedding(wedding_id: int, session: Session = Depends(get_db)) -> None:
+    wedding = _get_or_404(session, Wedding, wedding_id, "Wedding not found")
+    session.delete(wedding)
+    _commit(session)
+
+
+@router.post(
+    "/weddings/{wedding_id}/party-members",
+    response_model=WeddingPartyMemberRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_party_member(
+    wedding_id: int,
+    payload: WeddingPartyMemberCreate,
+    session: Session = Depends(get_db),
+) -> WeddingPartyMember:
+    _get_or_404(session, Wedding, wedding_id, "Wedding not found")
+    data = payload.model_dump(exclude={"by_me_quantity", "by_assistant_quantity"})
+    if payload.by_assistant_quantity is not None or payload.by_me_quantity is not None:
+        data["assistant"] = bool(payload.by_assistant_quantity)
+    wedding = _get_or_404(session, Wedding, wedding_id, "Wedding not found")
+    member = WeddingPartyMember(wedding_id=wedding_id, **data)
+    session.add(member)
+    warning = _refresh_existing_invoice(session, _get_wedding_detail(session, wedding_id))
+    _commit(session)
+    session.refresh(member)
+    member.invoice_warnings = [warning] if warning else []
+    return member
+
+
+@router.get("/party-members/{party_member_id}", response_model=WeddingPartyMemberRead)
+def get_party_member(party_member_id: int, session: Session = Depends(get_db)) -> WeddingPartyMember:
+    return _get_or_404(session, WeddingPartyMember, party_member_id, "Party member not found")
+
+
+@router.get("/weddings/{wedding_id}/party-members", response_model=list[WeddingPartyMemberRead])
+def list_party_members(
+    wedding_id: int,
+    session: Session = Depends(get_db),
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+) -> list[WeddingPartyMember]:
+    _get_or_404(session, Wedding, wedding_id, "Wedding not found")
+    stmt = select(WeddingPartyMember).where(WeddingPartyMember.wedding_id == wedding_id).order_by(WeddingPartyMember.id)
+    return list(session.scalars(stmt.offset(offset).limit(limit)))
+
+
+@router.patch("/party-members/{party_member_id}", response_model=WeddingPartyMemberRead)
+def update_party_member(
+    party_member_id: int,
+    payload: WeddingPartyMemberUpdate,
+    session: Session = Depends(get_db),
+) -> WeddingPartyMember:
+    member = _get_or_404(session, WeddingPartyMember, party_member_id, "Party member not found")
+    updates = payload.model_dump(
+        exclude_unset=True,
+        exclude={"by_me_quantity", "by_assistant_quantity"},
+    )
+    if payload.by_assistant_quantity is not None or payload.by_me_quantity is not None:
+        updates["assistant"] = bool(payload.by_assistant_quantity)
+    for field, value in updates.items():
+        setattr(member, field, value)
+    warning = _refresh_existing_invoice(session, _get_wedding_detail(session, member.wedding_id))
+    _commit(session)
+    session.refresh(member)
+    member.invoice_warnings = [warning] if warning else []
+    return member
+
+
+@router.delete("/party-members/{party_member_id}", response_model=None, status_code=status.HTTP_204_NO_CONTENT)
+def delete_party_member(party_member_id: int, session: Session = Depends(get_db)) -> None:
+    member = _get_or_404(session, WeddingPartyMember, party_member_id, "Party member not found")
+    wedding = _get_wedding_detail(session, member.wedding_id)
+    session.delete(member)
+    session.flush()
+    _refresh_existing_invoice(session, wedding)
+    _commit(session)
+
+
+@router.post("/pricing-versions/save-preview", response_model=PricingPreviewRead)
+def preview_pricing(payload: PricingVersionBase, session: Session = Depends(get_db)) -> dict:
+    return build_preview(session, payload.model_dump())
+
+
+@router.post("/pricing-versions/save", response_model=PricingSaveRead)
+def save_pricing_version(payload: PricingSave, session: Session = Depends(get_db)) -> dict:
+    data = payload.model_dump(exclude={"confirmed", "confirmation_fingerprint"})
+    version, preview = save_pricing(session, data, payload.confirmation_fingerprint)
+    metadata = pricing_metadata(session, version, version.id)
+    return {
+        "action": preview["action"],
+        "version": metadata,
+        "current_default_id": version.id,
+        "affected_records": preview["affected_records"],
+    }
+
+
+@router.get("/pricing-versions", response_model=list[PricingVersionRead])
+def list_pricing_versions(
+    session: Session = Depends(get_db),
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+) -> list[dict]:
+    versions = list(session.scalars(newest_statement().offset(offset).limit(limit)))
+    default_id = versions[0].id if offset == 0 and versions else (newest_pricing(session).id if newest_pricing(session) else None)
+    return [pricing_metadata(session, version, default_id) for version in versions]
+
+
+@router.get("/pricing-versions/{pricing_version_id}", response_model=PricingVersionRead)
+def get_pricing_version(pricing_version_id: int, session: Session = Depends(get_db)) -> dict:
+    version = _get_or_404(session, PricingVersion, pricing_version_id, "Pricing version not found")
+    return pricing_metadata(session, version)
+
+
+@router.delete("/pricing-versions/{pricing_version_id}", response_model=PricingDeleteRead)
+def delete_pricing_version(
+    pricing_version_id: int,
+    confirmed: bool = Query(...),
+    expected_default_id: int = Query(...),
+    session: Session = Depends(get_db),
+) -> dict:
+    if not confirmed:
+        raise HTTPException(status_code=422, detail="Deletion confirmation is required")
+    return delete_pricing(session, pricing_version_id, expected_default_id)
+
+
+@router.get("/invoices", response_model=list[InvoiceListItem])
+def list_invoices(
+    session: Session = Depends(get_db),
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+) -> list[Invoice]:
+    stmt = (
+        select(Invoice)
+        .options(selectinload(Invoice.pricing_version))
+        .order_by(desc(Invoice.wedding_id), desc(Invoice.id))
+        .offset(offset)
+        .limit(limit)
+    )
+    return list(session.scalars(stmt))
+
+
+@router.get("/invoices/{invoice_id}", response_model=InvoiceRead)
+def get_invoice(invoice_id: int, session: Session = Depends(get_db)) -> Invoice:
+    stmt = select(Invoice).options(selectinload(Invoice.pricing_version)).where(Invoice.id == invoice_id)
+    invoice = session.scalars(stmt).first()
+    if invoice is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found")
+    return invoice
+
+
+@router.post("/weddings/{wedding_id}/invoice", response_model=InvoiceGenerationResponse)
+def generate_wedding_invoice(
+    wedding_id: int,
+    payload: InvoiceGenerationRequest,
+    response: Response,
+    session: Session = Depends(get_db),
+) -> InvoiceGenerationResponse:
+    wedding = _get_wedding_detail(session, wedding_id)
+    missing = []
+    if not wedding.address or not wedding.address.strip():
+        missing.append("address")
+    if wedding.ready_by is None:
+        missing.append("ready_by")
+    if wedding.miles_one_way is None:
+        missing.append("miles_one_way")
+    if missing:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Missing required fields: {', '.join(missing)}",
+        )
+
+    if payload.pricing_version_id is None:
+        pricing = newest_pricing(session)
+    else:
+        pricing = session.get(PricingVersion, payload.pricing_version_id)
+    if pricing is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pricing version not found")
+
+    from ..invoice import apply_invoice_calculation, calculate_invoice
+
+    try:
+        calculation = calculate_invoice(wedding, wedding.client, pricing, wedding.party_members)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    invoice = session.scalar(select(Invoice).where(Invoice.wedding_id == wedding_id))
+    created = invoice is None
+    if invoice is None:
+        invoice = Invoice(wedding_id=wedding.id)
+        session.add(invoice)
+
+    # Explicit regeneration is confirmation-relevant even when the calculated
+    # values happen to be identical.
+    invoice.updated_at = datetime.now(timezone.utc)
+    apply_invoice_calculation(session, invoice, calculation, pricing, pricing.revision)
+    _commit(session)
+    session.refresh(invoice)
+    response.status_code = status.HTTP_201_CREATED if created else status.HTTP_200_OK
+    return InvoiceGenerationResponse(created=created, invoice=invoice)
+
+
+@router.get("/weddings/{wedding_id}/invoice", response_model=InvoiceRead)
+def get_wedding_invoice(wedding_id: int, session: Session = Depends(get_db)) -> Invoice:
+    _get_or_404(session, Wedding, wedding_id, "Wedding not found")
+    stmt = (
+        select(Invoice)
+        .options(selectinload(Invoice.pricing_version))
+        .where(Invoice.wedding_id == wedding_id)
+        .limit(1)
+    )
+    invoice = session.scalars(stmt).first()
+    if invoice is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found")
+    return invoice
+
+
+@router.get("/invoices/{invoice_id}/assistant-receipt", response_model=AssistantReceiptRead)
+def get_assistant_receipt(invoice_id: int, session: Session = Depends(get_db)) -> AssistantReceipt:
+    _get_or_404(session, Invoice, invoice_id, "Invoice not found")
+    receipt = session.scalar(select(AssistantReceipt).where(AssistantReceipt.invoice_id == invoice_id))
+    if receipt is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Assistant receipt not found")
+    return receipt
+
+
+@router.post("/payments", response_model=PaymentRead, status_code=status.HTTP_201_CREATED)
+def create_payment(payload: PaymentCreate, session: Session = Depends(get_db)) -> Payment:
+    _get_or_404(session, Wedding, payload.wedding_id, "Wedding not found")
+    payment = Payment(**payload.model_dump())
+    session.add(payment)
+    _commit(session)
+    session.refresh(payment)
+    return payment
+
+
+@router.get("/payments/{payment_id}", response_model=PaymentRead)
+def get_payment(payment_id: int, session: Session = Depends(get_db)) -> Payment:
+    return _get_or_404(session, Payment, payment_id, "Payment not found")
+
+
+@router.get("/weddings/{wedding_id}/payments", response_model=list[PaymentRead])
+def list_payments_for_wedding(
+    wedding_id: int,
+    session: Session = Depends(get_db),
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+) -> list[Payment]:
+    _get_or_404(session, Wedding, wedding_id, "Wedding not found")
+    stmt = select(Payment).where(Payment.wedding_id == wedding_id).order_by(desc(Payment.payment_date), desc(Payment.id))
+    return list(session.scalars(stmt.offset(offset).limit(limit)))
+
+
+@router.patch("/payments/{payment_id}", response_model=PaymentRead)
+def update_payment(payment_id: int, payload: PaymentUpdate, session: Session = Depends(get_db)) -> Payment:
+    payment = _get_or_404(session, Payment, payment_id, "Payment not found")
+    updates = payload.model_dump(exclude_unset=True)
+    if "wedding_id" in updates:
+        _get_or_404(session, Wedding, updates["wedding_id"], "Wedding not found")
+    for field, value in updates.items():
+        setattr(payment, field, value)
+    _commit(session)
+    session.refresh(payment)
+    return payment
+
+
+@router.delete("/payments/{payment_id}", response_model=None, status_code=status.HTTP_204_NO_CONTENT)
+def delete_payment(payment_id: int, session: Session = Depends(get_db)) -> None:
+    payment = _get_or_404(session, Payment, payment_id, "Payment not found")
+    session.delete(payment)
+    _commit(session)
