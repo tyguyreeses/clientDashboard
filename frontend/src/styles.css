@@ -1,7 +1,14 @@
 
+/* Keep the entry pages inside the viewport; the default body margin and content-box
+   sizing otherwise turn the viewport padding into an unnecessary scrollbar. */
+html, body, #root { min-height: 100%; }
+body { margin: 0; }
+*, *::before, *::after { box-sizing: border-box; }
+
 /* Public landing and admin entry pages share the approved, soft editorial brand. */
 .brand-page {
   min-height: 100vh;
+  min-height: 100dvh;
   position: relative;
   isolation: isolate;
   overflow: hidden;

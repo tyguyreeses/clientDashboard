@@ -14,7 +14,7 @@ function BrandPage({ children, className = "" }) {
         <img className="brand-page-logo" src="/logo_banner.PNG" alt="Hair By Maddie · Bridal Hairstylist" />
         {children}
       </section>
-      <p className="brand-page-footnote">Bridal hairstyling · New England</p>
+      <p className="brand-page-footnote">Hair By Maddie, LLC</p>
     </main>
   );
 }
@@ -23,8 +23,7 @@ function ComingSoon() {
   return (
     <BrandPage className="coming-soon-page">
       <div className="brand-page-content">
-        <h1>We’re getting ready<br />for your big day</h1>
-        <p>Our new online home is almost here. In the meantime, we’re busy creating beautiful bridal hair experiences for you.</p>
+        <h1>Coming soon!</h1>
         <span className="brand-page-divider" aria-hidden="true">✦</span>
       </div>
     </BrandPage>
