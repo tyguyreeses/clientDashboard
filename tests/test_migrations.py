@@ -55,8 +55,11 @@ def test_fresh_upgrade_has_pricing_policy_schema(tmp_path):
     with sqlite3.connect(db_path) as connection:
         assert {"name_normalized", "revision"} <= columns(connection, "pricing_versions")
         assert "pricing_revision_applied" in columns(connection, "invoices")
+        assert {"users", "sessions", "oauth_attempts", "rate_limit_buckets", "audit_events", "auth_state"} <= {
+            row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
+        }
         revision = connection.execute("SELECT version_num FROM alembic_version").fetchone()[0]
-        assert revision == "20260401_0004"
+        assert revision == "20260401_0007"
 
 
 def test_populated_0003_upgrade_preserves_invoice_data_and_backfills_revisions(tmp_path):
@@ -140,3 +143,26 @@ def test_populated_0003_upgrade_rejects_casefold_name_collisions_without_data_lo
             "SELECT id, name FROM pricing_versions ORDER BY id"
         ).fetchall() == [(1, " Straße "), (2, "STRASSE")]
         assert connection.execute("SELECT version_num FROM alembic_version").fetchone()[0] == "20260401_0003"
+
+
+def test_populated_0006_upgrade_preserves_business_records_and_adds_auth_schema(tmp_path):
+    db_path = tmp_path / "populated-0006.db"
+    alembic(db_path, "upgrade", "20260401_0006")
+
+    with sqlite3.connect(db_path) as connection:
+        connection.execute(
+            """
+            INSERT INTO clients (id, name, is_referral, archived, created_at, updated_at)
+            VALUES (1, 'Retained Client', 0, 0, '2026-04-01 12:00:00', '2026-04-01 12:00:00')
+            """
+        )
+        connection.commit()
+
+    alembic(db_path, "upgrade", "head")
+
+    with sqlite3.connect(db_path) as connection:
+        assert connection.execute("SELECT id, name FROM clients").fetchall() == [(1, "Retained Client")]
+        assert {"users", "sessions", "oauth_attempts", "rate_limit_buckets", "audit_events", "auth_state"} <= {
+            row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
+        }
+        assert connection.execute("SELECT version_num FROM alembic_version").fetchone()[0] == "20260401_0007"

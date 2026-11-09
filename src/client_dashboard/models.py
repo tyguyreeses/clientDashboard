@@ -347,3 +347,65 @@ class Payment(TimestampMixin, Base):
     notes: Mapped[str | None] = mapped_column(Text)
 
     wedding: Mapped[Wedding] = relationship(back_populates="payments")
+
+
+class User(Base):
+    __tablename__ = "users"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    google_subject: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+    email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+    display_name: Mapped[str | None] = mapped_column(String(255))
+    role: Mapped[str] = mapped_column(String(20), default="admin", nullable=False)
+    active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, nullable=False)
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class AuthSession(Base):
+    __tablename__ = "sessions"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    csrf_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, nullable=False)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    user: Mapped[User] = relationship()
+
+
+class OAuthAttempt(Base):
+    __tablename__ = "oauth_attempts"
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    state_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    nonce_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    pkce_challenge: Mapped[str] = mapped_column(String(128), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class RateLimitBucket(Base):
+    __tablename__ = "rate_limit_buckets"
+    route_key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    client_ip: Mapped[str] = mapped_column(String(64), primary_key=True)
+    window_start: Mapped[datetime] = mapped_column(DateTime(timezone=True), primary_key=True)
+    count: Mapped[int] = mapped_column(Integer, nullable=False)
+
+
+class AuditEvent(Base):
+    __tablename__ = "audit_events"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    event: Mapped[str] = mapped_column(String(40), nullable=False)
+    outcome: Mapped[str] = mapped_column(String(20), nullable=False)
+    metadata_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, nullable=False)
+
+
+class AuthState(Base):
+    __tablename__ = "auth_state"
+    id: Mapped[int] = mapped_column(primary_key=True, default=1)
+    bootstrap_completed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    pending_replacement_email: Mapped[str | None] = mapped_column(String(255))
+    pending_replacement_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    recovery_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

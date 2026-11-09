@@ -21,6 +21,12 @@ EXPECTED_TABLES = (
     "invoices",
     "assistant_receipts",
     "payments",
+    "users",
+    "sessions",
+    "oauth_attempts",
+    "rate_limit_buckets",
+    "audit_events",
+    "auth_state",
 )
 
 
