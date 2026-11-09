@@ -1,0 +1,7 @@
+[Unit]
+Description=Run Client Dashboard authentication cleanup daily
+[Timer]
+OnCalendar=daily
+Persistent=true
+[Install]
+WantedBy=timers.target

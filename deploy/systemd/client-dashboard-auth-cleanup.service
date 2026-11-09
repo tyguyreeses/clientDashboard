@@ -1,0 +1,8 @@
+[Unit]
+Description=Client Dashboard authentication cleanup
+[Service]
+Type=oneshot
+User=TODO_DEPLOY_USER
+WorkingDirectory=/srv/client-dashboard
+EnvironmentFile=/etc/client-dashboard.env
+ExecStart=/srv/client-dashboard/.venv/bin/python -m client_dashboard.scripts.cleanup_auth
