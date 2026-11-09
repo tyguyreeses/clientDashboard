@@ -59,7 +59,10 @@ def test_fresh_upgrade_has_pricing_policy_schema(tmp_path):
             row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
         }
         revision = connection.execute("SELECT version_num FROM alembic_version").fetchone()[0]
-        assert revision == "20260401_0007"
+        assert revision == "20260401_0008"
+        assert connection.execute(
+            "SELECT name, bride_price FROM pricing_versions"
+        ).fetchone() == ("Default pricing", 120)
 
 
 def test_populated_0003_upgrade_preserves_invoice_data_and_backfills_revisions(tmp_path):
@@ -165,4 +168,4 @@ def test_populated_0006_upgrade_preserves_business_records_and_adds_auth_schema(
         assert {"users", "sessions", "oauth_attempts", "rate_limit_buckets", "audit_events", "auth_state"} <= {
             row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
         }
-        assert connection.execute("SELECT version_num FROM alembic_version").fetchone()[0] == "20260401_0007"
+        assert connection.execute("SELECT version_num FROM alembic_version").fetchone()[0] == "20260401_0008"
