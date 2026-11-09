@@ -1,4 +1,7 @@
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+const API_URL = "/api/admin";
+let csrfToken = "";
+
+export const setCsrfToken = (token) => { csrfToken = token || ""; };
 
 export const STATUS = {
   0: { label: "Cancelled", tone: "cancelled" },
@@ -35,7 +38,11 @@ export const TRIAL_STATUS = {
 
 export const json = async (path, options = {}) => {
   const response = await fetch(`${API_URL}${path}`, {
-    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.method && options.method !== "GET" ? { "X-CSRF-Token": csrfToken } : {}),
+      ...(options.headers || {}),
+    },
     ...options,
   });
   if (!response.ok) {

@@ -17,18 +17,18 @@ test("remove hides a wedding member immediately and deletes only on Save", { ski
   try {
     const page = await browser.newPage();
     const requests = [];
-    await page.route("http://localhost:8000/**", async (route) => {
+    await page.route("**/api/**", async (route) => {
       const request = route.request();
       requests.push(`${request.method()} ${new URL(request.url()).pathname}`);
       const path = new URL(request.url()).pathname;
       let body = {};
-      if (path === "/weddings/1") body = {
+      if (path === "/api/admin/weddings/1") body = {
         id: 1, client_id: 2, wedding_date: "2026-06-01", status: 1,
         bridal_trial_status: "not_interested",
         party_members: [{ id: 12, role: "P", hairstyle: "D", assistant: true }],
       };
-      if (path === "/clients/2") body = { id: 2, name: "Test Bride" };
-      if (path === "/pricing-versions") body = [];
+      if (path === "/api/admin/clients/2") body = { id: 2, name: "Test Bride" };
+      if (path === "/api/admin/pricing-versions") body = [];
       await route.fulfill({ status: request.method() === "DELETE" ? 204 : path.endsWith("/invoice") ? 404 : 200, contentType: "application/json", body: JSON.stringify(body) });
     });
     // No confirmation should be required for a change that is still cancellable.
@@ -38,7 +38,7 @@ test("remove hides a wedding member immediately and deletes only on Save", { ski
     await page.getByRole("button", { name: "Remove Bride" }).click();
     assert.equal(await page.locator(".party-member-row").count(), 1);
     assert.equal(requests.some((request) => request.startsWith("DELETE ")), false);
-    const deleted = page.waitForRequest((request) => request.method() === "DELETE" && request.url().endsWith("/party-members/11"));
+    const deleted = page.waitForRequest((request) => request.method() === "DELETE" && request.url().endsWith("/api/admin/party-members/11"));
     await page.getByRole("button", { name: "Save", exact: true }).click();
     await deleted;
     await page.getByRole("button", { name: "Edit" }).nth(1).waitFor();
