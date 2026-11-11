@@ -27,6 +27,7 @@ EXPECTED_TABLES = (
     "rate_limit_buckets",
     "audit_events",
     "auth_state",
+    "inquiry_attempts",
 )
 
 

@@ -55,14 +55,26 @@ def test_fresh_upgrade_has_pricing_policy_schema(tmp_path):
     with sqlite3.connect(db_path) as connection:
         assert {"name_normalized", "revision"} <= columns(connection, "pricing_versions")
         assert "pricing_revision_applied" in columns(connection, "invoices")
-        assert {"users", "sessions", "oauth_attempts", "rate_limit_buckets", "audit_events", "auth_state"} <= {
+        assert {"users", "sessions", "oauth_attempts", "rate_limit_buckets", "audit_events", "auth_state", "inquiry_attempts"} <= {
             row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
         }
         revision = connection.execute("SELECT version_num FROM alembic_version").fetchone()[0]
-        assert revision == "20260401_0008"
+        assert revision == "20260401_0009"
         assert connection.execute(
             "SELECT name, bride_price FROM pricing_versions"
         ).fetchone() == ("Default pricing", 120)
+
+
+def test_inquiry_attempt_migration_downgrades_cleanly(tmp_path):
+    db_path = tmp_path / "inquiry-downgrade.db"
+    alembic(db_path, "upgrade", "head")
+    alembic(db_path, "downgrade", "20260401_0008")
+
+    with sqlite3.connect(db_path) as connection:
+        assert "inquiry_attempts" not in {
+            row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
+        }
+        assert connection.execute("SELECT version_num FROM alembic_version").fetchone()[0] == "20260401_0008"
 
 
 def test_populated_0003_upgrade_preserves_invoice_data_and_backfills_revisions(tmp_path):
@@ -165,7 +177,7 @@ def test_populated_0006_upgrade_preserves_business_records_and_adds_auth_schema(
 
     with sqlite3.connect(db_path) as connection:
         assert connection.execute("SELECT id, name FROM clients").fetchall() == [(1, "Retained Client")]
-        assert {"users", "sessions", "oauth_attempts", "rate_limit_buckets", "audit_events", "auth_state"} <= {
+        assert {"users", "sessions", "oauth_attempts", "rate_limit_buckets", "audit_events", "auth_state", "inquiry_attempts"} <= {
             row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
         }
-        assert connection.execute("SELECT version_num FROM alembic_version").fetchone()[0] == "20260401_0008"
+        assert connection.execute("SELECT version_num FROM alembic_version").fetchone()[0] == "20260401_0009"

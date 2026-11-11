@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import "./styles.css";
 import { App } from "./App";
 import { AdminLoginPage } from "./pages/AdminLoginPage";
+import { InquiryPage } from "./pages/InquiryPage";
 import { setCsrfToken } from "./utils";
 
 function BrandPage({ children, className = "" }) {
@@ -24,6 +25,8 @@ function ComingSoon() {
     <BrandPage className="coming-soon-page">
       <div className="brand-page-content">
         <h1>Coming soon!</h1>
+        <p>Our new online home is almost here. In the meantime, we’re creating beautiful bridal hair experiences.</p>
+        <div className="coming-soon-actions"><a className="inquiry-submit" href="/inquiry">Inquire about your wedding</a><a className="admin-link" href="/admin">Sign in as admin</a></div>
         <span className="brand-page-divider" aria-hidden="true">✦</span>
       </div>
     </BrandPage>
@@ -33,6 +36,7 @@ function ComingSoon() {
 function Root() {
   const path = window.location.pathname;
   if (path === "/") return <ComingSoon />;
+  if (path === "/inquiry") return <InquiryPage />;
   if (path === "/admin/login") return <AdminLoginPage />;
   if (path === "/admin") return <Admin />;
   return <ComingSoon />;

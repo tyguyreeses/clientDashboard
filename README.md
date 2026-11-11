@@ -63,6 +63,14 @@ npm run build
 
 Database schema and migration documentation is in [`src/client_dashboard/README.md`](src/client_dashboard/README.md).
 
+## Public bridal inquiries
+
+Visitors can open `/inquiry` or submit anonymously to `POST /api/inquiry`; no admin session, CSRF token, email provider, or email configuration is involved. Apply migrations with `alembic upgrade head` before deployment. The API requires name, email, social profile, wedding date, getting-ready address, service counts (brides defaults to 1), ready-by time and firmness, home/venue, makeup and bridal-trial choices, planning stage, referral source, and contact consent. Phone, recommendations, referral name, and additional notes are optional; choosing Other requires a source name. Consent is not stored. Wedding dates must be after today and no later than the same calendar date next year in America/Denver (Feb. 29 anniversaries use Feb. 28); farther-out dates prompt visitors to contact Maddie on Instagram.
+
+Successful inquiries create a Client, an Inquired Wedding, initial status progress, and service-party records atomically. Counts map to B (bride), P (bridesmaids/MOB/MOG), and J (flowergirls/junior bridesmaids); source Other maps only to `Client.source` (maximum 100 characters). Optional notes are limited to 2,000 characters; home/venue, time firmness, and trial context are appended to `Client.notes`. Planning choices are stored as `looking`, `invoice`, or `book`. `Client.inquiry_date` uses the America/Denver calendar date.
+
+Outside `APP_ENV=development`, the API permits three submissions per client IP in a rolling 60-minute window. Development is exempt. Keep the API behind the configured Nginx proxy: it replaces forwarded client IP headers with the connected remote address, and Uvicorn must only be reachable through that trusted local proxy. Do not expose Uvicorn directly or trust client-supplied forwarding headers.
+
 ## Pricing
 
 The **Pricing** tab is available in the top navigation after **History**. It loads the newest version into a complete editable form. Monetary fields are nonnegative, percentages are from 0 through 100, and service durations are nonnegative whole minutes; zero minutes is valid. The form requires confirmation before either correcting the current version or creating a new default.
