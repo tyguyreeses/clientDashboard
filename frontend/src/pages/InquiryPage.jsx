@@ -52,11 +52,14 @@ export function InquiryPage() {
           additional_notes: values.additional_notes || null,
         }),
       });
-      const result = await response.json();
-      if (!response.ok) throw new Error(typeof result.detail === "string" ? result.detail : "Please check your answers and try submitting again.");
+      const result = await response.json().catch(() => null);
+      if (!response.ok) {
+        setError(typeof result?.detail === "string" ? result.detail : "We couldn't submit your inquiry. Please try again.");
+        return;
+      }
       setSaved(true);
-    } catch (failure) {
-      setError(failure.message || "We couldn't submit your inquiry. Please try again.");
+    } catch {
+      setError("We couldn't submit your inquiry. Please try again.");
     } finally {
       setSubmitting(false);
     }

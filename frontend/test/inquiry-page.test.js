@@ -98,3 +98,19 @@ test("failed inquiry submission preserves answers and shows an actionable error"
     await server.close();
   }
 });
+
+test("non-JSON inquiry failures preserve answers and show a retry message", { skip: !chrome && "Chrome not installed (set CHROME_PATH)" }, async () => {
+  const { server, browser, page } = await openInquiry();
+  try {
+    await page.route("**/api/inquiry", (route) => route.fulfill({ status: 503, contentType: "text/html", body: "Service unavailable" }));
+    await fillInquiry(page);
+    await page.getByRole("button", { name: "Send inquiry" }).click();
+    await page.getByRole("alert").waitFor();
+
+    assert.equal(await page.getByLabel(/Instagram handle/).inputValue(), "@taylor");
+    assert.match(await page.getByRole("alert").innerText(), /couldn't submit your inquiry.*try again/i);
+  } finally {
+    await browser.close();
+    await server.close();
+  }
+});
