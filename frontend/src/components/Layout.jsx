@@ -1,4 +1,8 @@
-export function Header({ page, onNavigate, onAddClient }) {
+import { initials } from "../utils";
+
+export function Header({ page, onNavigate, onAddClient, user }) {
+  const identity = user?.display_name || user?.email?.split("@")[0] || "User";
+  const userInitials = initials(identity) || "U";
   return (
     <header className="site-header">
       <a className="brand" href="#" onClick={() => onNavigate("dashboard")}>
@@ -46,8 +50,8 @@ export function Header({ page, onNavigate, onAddClient }) {
       <button className="header-add" onClick={onAddClient}>
         ＋ New client
       </button>
-      <button className="avatar" aria-label="Open profile">
-        TR
+      <button className="avatar" aria-label={`Open profile for ${identity}`}>
+        {userInitials}
       </button>
     </header>
   );

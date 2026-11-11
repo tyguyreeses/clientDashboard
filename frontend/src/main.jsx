@@ -40,9 +40,13 @@ function Root() {
 
 function Admin() {
   const [state, setState] = React.useState("loading");
+  const [user, setUser] = React.useState(null);
   React.useEffect(() => { fetch("/api/auth/me").then(async response => {
     if (!response.ok) { window.location.replace("/admin/login"); return; }
-    const body = await response.json(); setCsrfToken(body.csrf_token); setState("ready");
+    const body = await response.json();
+    setCsrfToken(body.csrf_token);
+    setUser(body.user);
+    setState("ready");
   }).catch(() => setState("error")); }, []);
   if (state !== "ready") {
     return (
@@ -54,7 +58,7 @@ function Admin() {
       </BrandPage>
     );
   }
-  return <App />;
+  return <App user={user} />;
 }
 
 createRoot(document.getElementById("root")).render(<Root />);
