@@ -62,7 +62,7 @@ def test_valid_public_submission_creates_related_records_and_maps_answers(anonym
         assert "Local fair" not in client.notes
         assert wedding.status == Wedding.STATUS_INQUIRED
         assert wedding.bridal_trial_status == Wedding.BRIDAL_TRIAL_INTERESTED
-        assert [member.role for member in members] == ["P", "P", "J"]
+        assert [member.role for member in members] == ["P", "P", "F"]
         assert len(progress) == 1 and progress[0].status == Wedding.STATUS_INQUIRED
         assert response.json()["message"].startswith("I've received your inquiry")
 
@@ -97,17 +97,15 @@ def test_source_and_additional_notes_limits_are_enforced(anonymous_client):
     assert valid_limits.status_code == 201
 
 
-def test_date_window_and_whole_number_service_counts_are_validated(anonymous_client, monkeypatch):
+def test_future_dates_and_whole_number_service_counts_are_validated(anonymous_client, monkeypatch):
     monkeypatch.setattr(inquiry_api, "denver_today", lambda: date(2028, 2, 29))
-    accepted = anonymous_client.post("/api/inquiry", json=inquiry_payload(wedding_date="2029-02-28"))
-    past = anonymous_client.post("/api/inquiry", json=inquiry_payload(wedding_date="2028-02-29"))
-    after_window = anonymous_client.post("/api/inquiry", json=inquiry_payload(wedding_date="2029-03-01"))
+    far_future = anonymous_client.post("/api/inquiry", json=inquiry_payload(wedding_date="2035-01-01"))
+    today = anonymous_client.post("/api/inquiry", json=inquiry_payload(wedding_date="2028-02-29"))
     fractional = anonymous_client.post("/api/inquiry", json=inquiry_payload(bride_count=1.5))
     excessive = anonymous_client.post("/api/inquiry", json=inquiry_payload(bride_count=10, party_count=1))
 
-    assert accepted.status_code == 201
-    assert past.status_code == 422
-    assert after_window.status_code == 422
+    assert far_future.status_code == 201
+    assert today.status_code == 422
     assert fractional.status_code == 422
     assert excessive.status_code == 422
 

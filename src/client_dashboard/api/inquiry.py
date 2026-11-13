@@ -23,17 +23,9 @@ def denver_today() -> date:
     return datetime.now(DENVER).date()
 
 
-def date_limit(today: date) -> date:
-    try:
-        return today.replace(year=today.year + 1)
-    except ValueError:
-        return today.replace(year=today.year + 1, day=28)
-
-
 def _validate_date(value: date) -> None:
-    today = denver_today()
-    if value <= today or value > date_limit(today):
-        raise HTTPException(status_code=422, detail="Choose a wedding date after today and within one year")
+    if value <= denver_today():
+        raise HTTPException(status_code=422, detail="Choose a future wedding date")
 
 
 def _lock_ip_attempts(session: Session, ip_address: str) -> None:
@@ -83,7 +75,7 @@ def _add_members(session: Session, wedding: Wedding, payload: PublicInquiryCreat
         ))
     for role, count in (
         (WeddingPartyMember.ROLE_BRIDAL_PARTY, payload.party_count),
-        (WeddingPartyMember.ROLE_JUNIOR_BRIDESMAID, payload.junior_count),
+        (WeddingPartyMember.ROLE_FLOWERGIRL, payload.junior_count),
     ):
         for _ in range(count):
             session.add(WeddingPartyMember(

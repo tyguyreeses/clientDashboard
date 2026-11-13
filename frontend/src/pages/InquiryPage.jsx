@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
 const initialValues = {
   name: "",
@@ -34,16 +34,6 @@ function denverDate() {
   }).format(new Date());
 }
 
-function oneYearDate(value) {
-  if (!value) return "";
-
-  const [year, month, day] = value.split("-").map(Number);
-  const nextYear = year + 1;
-  const anniversaryDay = month === 2 && day === 29 ? 28 : day;
-
-  return `${nextYear}-${String(month).padStart(2, "0")}-${String(anniversaryDay).padStart(2, "0")}`;
-}
-
 function Choice({ name, label, options, value, onChange, required = true }) {
   return (
     <fieldset className="inquiry-choice">
@@ -61,8 +51,7 @@ function Choice({ name, label, options, value, onChange, required = true }) {
               checked={value === choice}
               onChange={onChange}
               required={required}
-            />
-            {" "}
+            />{" "}
             {text}
           </label>
         ))}
@@ -76,13 +65,13 @@ export function InquiryPage() {
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const maxDate = useMemo(() => oneYearDate(denverDate()), []);
-  const tooFar = values.wedding_date > maxDate;
-
   const set = (key) => (event) => {
     setValues((current) => ({
       ...current,
-      [key]: event.target.type === "checkbox" ? event.target.checked : event.target.value,
+      [key]:
+        event.target.type === "checkbox"
+          ? event.target.checked
+          : event.target.value,
     }));
   };
 
@@ -105,7 +94,8 @@ export function InquiryPage() {
             values.recommendations_if_unavailable === ""
               ? null
               : values.recommendations_if_unavailable === "yes",
-          referral_other: values.referral_source === "Other" ? values.referral_other : null,
+          referral_other:
+            values.referral_source === "Other" ? values.referral_other : null,
           referral_name: values.referral_name || null,
           additional_notes: values.additional_notes || null,
         }),
@@ -135,8 +125,8 @@ export function InquiryPage() {
         <div className="inquiry-success" role="status">
           <h1>Your inquiry has been received!</h1>
           <p>
-            I've received your inquiry and will be in touch within 2 business days. I can't wait to
-            chat details with you soon!!
+            I've received your inquiry and will be in touch within 2 business
+            days. I can't wait to chat details with you soon!!
           </p>
         </div>
       </BrandShell>
@@ -146,29 +136,61 @@ export function InquiryPage() {
   return (
     <BrandShell>
       <div className="inquiry-content">
-        <a className="inquiry-back" href="/">
+        <button
+          className="back-button"
+          type="button"
+          onClick={() => window.location.assign("/")}
+        >
           ← Back
-        </a>
-        <p className="eyebrow">Let’s plan your wedding hair</p>
+        </button>
         <h1>Bridal inquiry</h1>
-        <p>Share a few details and Maddie will be in touch within 2 business days.</p>
+        <p>
+          <strong>hiiii bestie bride!!</strong>
+        </p>
+        <p>
+          Please fill out the form below & I will get your personalized invoice
+          back to you <strong>within 2 business days from submission</strong> :)
+          feel free to message me in my DM’s on Instagram @hairby.maddieee with
+          any questions. I’m stoked to be your hair girl for your special day!
+        </p>
 
         <form onSubmit={submit}>
           <label>
             Full name *
-            <input autoComplete="name" required maxLength={255} value={values.name} onChange={set("name")} />
+            <input
+              autoComplete="name"
+              required
+              maxLength={255}
+              value={values.name}
+              onChange={set("name")}
+            />
           </label>
           <label>
             Email *
-            <input type="email" autoComplete="email" required value={values.email} onChange={set("email")} />
+            <input
+              type="email"
+              autoComplete="email"
+              required
+              value={values.email}
+              onChange={set("email")}
+            />
           </label>
           <label>
             Phone number (optional)
-            <input type="tel" autoComplete="tel" value={values.phone} onChange={set("phone")} />
+            <input
+              type="tel"
+              autoComplete="tel"
+              value={values.phone}
+              onChange={set("phone")}
+            />
           </label>
           <label>
             Instagram handle or Facebook profile *
-            <input required value={values.social_media} onChange={set("social_media")} />
+            <input
+              required
+              value={values.social_media}
+              onChange={set("social_media")}
+            />
           </label>
           <label>
             Wedding date *
@@ -176,23 +198,18 @@ export function InquiryPage() {
               type="date"
               required
               min={denverDate()}
-              max={maxDate}
               value={values.wedding_date}
               onChange={set("wedding_date")}
             />
           </label>
-          {tooFar && (
-            <p className="inquiry-date-guidance" role="alert">
-              Dates more than one year away need a little extra planning. {" "}
-              <a href="https://ig.me/m/hairby.maddieee" target="_blank" rel="noreferrer">
-                DM @hairby.maddieee on Instagram
-              </a>
-              .
-            </p>
-          )}
           <label>
             Getting-ready address *
-            <input required maxLength={255} value={values.address} onChange={set("address")} />
+            <input
+              required
+              maxLength={255}
+              value={values.address}
+              onChange={set("address")}
+            />
           </label>
 
           <div className="inquiry-counts">
@@ -221,7 +238,7 @@ export function InquiryPage() {
               />
             </label>
             <label>
-              Flowergirls / junior bridesmaids under 11 *
+              Flowergirls *
               <input
                 type="number"
                 min="0"
@@ -235,7 +252,12 @@ export function InquiryPage() {
           </div>
           <label>
             Ready-by time *
-            <input type="time" required value={values.ready_by} onChange={set("ready_by")} />
+            <input
+              type="time"
+              required
+              value={values.ready_by}
+              onChange={set("ready_by")}
+            />
           </label>
 
           <Choice
@@ -243,28 +265,40 @@ export function InquiryPage() {
             label="Getting-ready location"
             value={values.location_type}
             onChange={set("location_type")}
-            options={[["home", "Home"], ["venue", "Venue"]]}
+            options={[
+              ["home", "Home"],
+              ["venue", "Venue"],
+            ]}
           />
           <Choice
             name="time_firmness"
             label="Is your ready-by time set in stone?"
             value={values.time_firmness}
             onChange={set("time_firmness")}
-            options={[["firm", "Yes, it’s firm"], ["estimate", "No, it’s my best guess"]]}
+            options={[
+              ["firm", "Yes, it’s firm"],
+              ["estimate", "No, it’s my best guess"],
+            ]}
           />
           <Choice
             name="makeup_interest"
             label="Interested in makeup services?"
             value={values.makeup_interest}
             onChange={set("makeup_interest")}
-            options={[["yes", "Yes please!"], ["no", "Already got my girl!"]]}
+            options={[
+              ["yes", "Yes please!"],
+              ["no", "Already got my girl!"],
+            ]}
           />
           <Choice
             name="bridal_trial"
             label="Interested in a bridal trial?"
             value={values.bridal_trial}
             onChange={set("bridal_trial")}
-            options={[["yes", "Yes please!"], ["thinking", "I’m still thinking about it!"]]}
+            options={[
+              ["yes", "Yes please!"],
+              ["thinking", "I’m still thinking about it!"],
+            ]}
           />
           <Choice
             name="planning_stage"
@@ -273,7 +307,10 @@ export function InquiryPage() {
             onChange={set("planning_stage")}
             options={[
               ["looking", "Just looking around :)"],
-              ["invoice", "Love your work & would love my personalized invoice!"],
+              [
+                "invoice",
+                "Love your work & would love my personalized invoice!",
+              ],
               ["book", "So excited to book with you! Where do I sign?!"],
             ]}
           />
@@ -313,7 +350,10 @@ export function InquiryPage() {
           )}
           <label>
             Who referred you? (optional)
-            <input value={values.referral_name} onChange={set("referral_name")} />
+            <input
+              value={values.referral_name}
+              onChange={set("referral_name")}
+            />
           </label>
           <label>
             Anything else to know? (optional)
@@ -330,19 +370,28 @@ export function InquiryPage() {
               required
               checked={values.contact_consent}
               onChange={set("contact_consent")}
-            />
-            {" "}I agree that Maddie may contact me about my inquiry. *
+            />{" "}
+            I agree that Maddie may contact me about my inquiry. *
           </label>
           <label className="inquiry-honeypot" aria-hidden="true">
             Leave this field empty
-            <input tabIndex="-1" autoComplete="off" value={values.website} onChange={set("website")} />
+            <input
+              tabIndex="-1"
+              autoComplete="off"
+              value={values.website}
+              onChange={set("website")}
+            />
           </label>
           {error && (
             <p className="inquiry-error" role="alert">
               {error}
             </p>
           )}
-          <button className="inquiry-submit" type="submit" disabled={submitting || tooFar}>
+          <button
+            className="inquiry-submit"
+            type="submit"
+            disabled={submitting}
+          >
             {submitting ? "Sending…" : "Send inquiry"}
           </button>
         </form>
