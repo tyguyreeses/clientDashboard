@@ -96,7 +96,7 @@ export function PricingPage() {
   };
 
   return <main className="pricing-page">
-    <div className="pricing-heading"><div><h1>Pricing</h1><p>Manage pricing and service-time assumptions.</p></div></div>
+    <div className="pricing-heading"><div><h1>Pricing  &  Service Time</h1></div></div>
     {error && <div className="api-message error">{error}</div>}
     {!selected ? <div className="loading-state">No pricing version found.</div> : <>
       <form className="pricing-form" onSubmit={requestPreview}>

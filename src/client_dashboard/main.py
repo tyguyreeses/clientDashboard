@@ -5,6 +5,7 @@ from fastapi.responses import HTMLResponse
 
 from .api.admin import router as admin_router
 from .api.auth import router as auth_router
+from .api.inquiry import router as inquiry_router
 from .api.public import router as public_router
 
 COMING_SOON = """<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><title>Hair By Maddie — Coming Soon</title></head><body><main><h1>Hair By Maddie</h1><p>Coming Soon</p></main></body></html>"""
@@ -22,6 +23,7 @@ def create_app() -> FastAPI:
         return response
 
     app.include_router(public_router)
+    app.include_router(inquiry_router)
     app.include_router(auth_router)
     app.include_router(admin_router)
 

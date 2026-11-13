@@ -7,7 +7,7 @@ import { PricingPage } from "./pages/PricingPage";
 import { BookingRate, KanbanBoard, Stat } from "./components/WeddingBoard";
 import { initials, json, weddingView } from "./utils";
 
-export function App() {
+export function App({ user }) {
   const [weddings, setWeddings] = useState([]);
   const [clients, setClients] = useState([]);
   const [selected, setSelected] = useState(null);
@@ -126,6 +126,7 @@ export function App() {
   return (
     <div className="app-shell">
       <Header
+        user={user}
         page={page}
         onNavigate={(next) => {
           setSelected(null);

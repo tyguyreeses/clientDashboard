@@ -4,7 +4,7 @@ from datetime import date, datetime, time
 from decimal import Decimal
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, field_validator, model_validator
 
 WeddingStatus = Literal[0, 1, 2, 3, 4, 5, 6]
 BridalTrialStatus = Literal["not_interested", "interested", "link_sent", "booked", "complete", "cancelled"]
@@ -19,6 +19,52 @@ class ORMModel(BaseModel):
 class TimestampRead(ORMModel):
     created_at: datetime
     updated_at: datetime
+
+
+class PublicInquiryCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=255)
+    email: str = Field(min_length=3, max_length=255, pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+    phone: str | None = Field(default=None, max_length=50)
+    social_media: str = Field(min_length=1, max_length=255)
+    wedding_date: date
+    address: str = Field(min_length=1, max_length=255)
+    bride_count: StrictInt = Field(default=1, ge=0)
+    party_count: StrictInt = Field(default=0, ge=0)
+    junior_count: StrictInt = Field(default=0, ge=0)
+    ready_by: time
+    time_firmness: Literal["firm", "estimate"]
+    location_type: Literal["home", "venue"]
+    makeup_interest: bool
+    bridal_trial: Literal["yes", "thinking"]
+    planning_stage: Literal["looking", "invoice", "book"]
+    recommendations_if_unavailable: bool | None = None
+    referral_source: Literal["Instagram", "Facebook", "Friend", "Other"]
+    referral_other: str | None = Field(default=None, max_length=100)
+    referral_name: str | None = Field(default=None, max_length=255)
+    additional_notes: str | None = Field(default=None, max_length=2000)
+    contact_consent: bool
+    website: str = ""
+
+    @field_validator("name", "email", "social_media", "address")
+    @classmethod
+    def strip_required_text(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("This field is required")
+        return value
+
+    @model_validator(mode="after")
+    def valid_inquiry(self):
+        if self.bride_count + self.party_count + self.junior_count > 10:
+            raise ValueError("No more than 10 service members may be requested")
+        if self.referral_source == "Other":
+            if not self.referral_other or not self.referral_other.strip():
+                raise ValueError("Please tell us how you heard about Maddie")
+            if len(self.referral_other) > 100:
+                raise ValueError("Referral source must be 100 characters or fewer")
+        if not self.contact_consent:
+            raise ValueError("Contact consent is required")
+        return self
 
 
 class ClientBase(BaseModel):

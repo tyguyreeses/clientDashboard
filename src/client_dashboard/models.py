@@ -349,6 +349,15 @@ class Payment(TimestampMixin, Base):
     wedding: Mapped[Wedding] = relationship(back_populates="payments")
 
 
+class InquiryAttempt(Base):
+    __tablename__ = "inquiry_attempts"
+    __table_args__ = (Index("ix_inquiry_attempts_ip_attempted_at", "ip_address", "attempted_at"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    ip_address: Mapped[str] = mapped_column(String(45), nullable=False)
+    attempted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_utcnow)
+
+
 class User(Base):
     __tablename__ = "users"
     id: Mapped[int] = mapped_column(primary_key=True)

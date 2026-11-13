@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import "./styles.css";
 import { App } from "./App";
 import { AdminLoginPage } from "./pages/AdminLoginPage";
+import { InquiryPage } from "./pages/InquiryPage";
 import { setCsrfToken } from "./utils";
 
 function BrandPage({ children, className = "" }) {
@@ -23,8 +24,17 @@ function ComingSoon() {
   return (
     <BrandPage className="coming-soon-page">
       <div className="brand-page-content">
-        <h1>Coming soon!</h1>
-        <span className="brand-page-divider" aria-hidden="true">✦</span>
+        <h1>Click below to inquire!</h1>
+        <a className="inquiry-submit" href="/inquiry">
+          Inquire
+        </a>
+        <p>Full portfolio site coming soon!</p>
+        <span className="brand-page-divider" aria-hidden="true">
+          ✦
+        </span>
+        <a className="admin-link" href="/admin">
+          Sign in as admin
+        </a>
       </div>
     </BrandPage>
   );
@@ -33,6 +43,7 @@ function ComingSoon() {
 function Root() {
   const path = window.location.pathname;
   if (path === "/") return <ComingSoon />;
+  if (path === "/inquiry") return <InquiryPage />;
   if (path === "/admin/login") return <AdminLoginPage />;
   if (path === "/admin") return <Admin />;
   return <ComingSoon />;
@@ -40,9 +51,13 @@ function Root() {
 
 function Admin() {
   const [state, setState] = React.useState("loading");
+  const [user, setUser] = React.useState(null);
   React.useEffect(() => { fetch("/api/auth/me").then(async response => {
     if (!response.ok) { window.location.replace("/admin/login"); return; }
-    const body = await response.json(); setCsrfToken(body.csrf_token); setState("ready");
+    const body = await response.json();
+    setCsrfToken(body.csrf_token);
+    setUser(body.user);
+    setState("ready");
   }).catch(() => setState("error")); }, []);
   if (state !== "ready") {
     return (
@@ -54,7 +69,7 @@ function Admin() {
       </BrandPage>
     );
   }
-  return <App />;
+  return <App user={user} />;
 }
 
 createRoot(document.getElementById("root")).render(<Root />);
