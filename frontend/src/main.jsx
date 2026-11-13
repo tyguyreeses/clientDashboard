@@ -24,10 +24,17 @@ function ComingSoon() {
   return (
     <BrandPage className="coming-soon-page">
       <div className="brand-page-content">
-        <h1>Coming soon!</h1>
-        <p>Our new online home is almost here. In the meantime, we’re creating beautiful bridal hair experiences.</p>
-        <div className="coming-soon-actions"><a className="inquiry-submit" href="/inquiry">Inquire about your wedding</a><a className="admin-link" href="/admin">Sign in as admin</a></div>
-        <span className="brand-page-divider" aria-hidden="true">✦</span>
+        <h1>Click below to inquire!</h1>
+        <a className="inquiry-submit" href="/inquiry">
+          Inquire
+        </a>
+        <p>Full portfolio site coming soon!</p>
+        <span className="brand-page-divider" aria-hidden="true">
+          ✦
+        </span>
+        <a className="admin-link" href="/admin">
+          Sign in as admin
+        </a>
       </div>
     </BrandPage>
   );
